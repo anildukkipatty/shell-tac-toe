@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Happy Valentine's Day Gautami</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #fce4ec, #f8bbd0, #f48fb1);
+            font-family: 'Georgia', serif;
+            overflow: hidden;
+        }
+
+        /* Floating hearts background */
+        .hearts-bg {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .floating-heart {
+            position: absolute;
+            bottom: -50px;
+            font-size: 20px;
+            animation: floatUp linear infinite;
+            opacity: 0.4;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0) rotate(0deg); opacity: 0.4; }
+            50% { opacity: 0.7; }
+            100% { transform: translateY(-110vh) rotate(360deg); opacity: 0; }
+        }
+
+        /* Card container */
+        .card-scene {
+            perspective: 1200px;
+            z-index: 1;
+        }
+
+        .card {
+            width: 340px;
+            height: 460px;
+            position: relative;
+            cursor: pointer;
+            transform-style: preserve-3d;
+        }
+
+        /* Card cover (front) */
+        .card-cover {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(160deg, #e91e63, #c2185b, #880e4f);
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(136, 14, 79, 0.4);
+            transform-origin: left center;
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            backface-visibility: hidden;
+        }
+
+        .card.opened .card-cover {
+            transform: rotateY(-160deg);
+            box-shadow: 0 10px 30px rgba(136, 14, 79, 0.2);
+        }
+
+        .cover-heart {
+            font-size: 80px;
+            animation: pulse 1.2s ease-in-out infinite;
+            filter: drop-shadow(0 4px 20px rgba(255, 255, 255, 0.3));
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+        }
+
+        .cover-text {
+            color: #fff;
+            font-size: 18px;
+            margin-top: 20px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            opacity: 0.9;
+        }
+
+        .cover-hint {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 13px;
+            margin-top: 30px;
+            animation: fadeHint 2s ease-in-out infinite;
+        }
+
+        @keyframes fadeHint {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.8; }
+        }
+
+        /* Card inside */
+        .card-inside {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(170deg, #fff5f5, #fff0f2, #ffe8ed);
+            border-radius: 16px;
+            box-shadow: inset 0 0 40px rgba(233, 30, 99, 0.08);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 30px 24px;
+            z-index: 1;
+        }
+
+        .inside-hearts {
+            font-size: 30px;
+            opacity: 0;
+            transform: scale(0.3);
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s;
+        }
+
+        .card.opened .inside-hearts {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .inside-message {
+            text-align: center;
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.6s ease 0.7s;
+        }
+
+        .card.opened .inside-message {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .inside-message h1 {
+            font-size: 24px;
+            color: #c2185b;
+            line-height: 1.4;
+            margin-bottom: 10px;
+        }
+
+        .inside-message .name {
+            font-size: 38px;
+            color: #e91e63;
+            font-style: italic;
+            display: block;
+            margin-top: 4px;
+            text-shadow: 0 2px 10px rgba(233, 30, 99, 0.2);
+        }
+
+        .inside-message p {
+            color: #ad1457;
+            font-size: 15px;
+            line-height: 1.6;
+            margin-top: 8px;
+            font-style: italic;
+        }
+
+        /* Valentine question & buttons */
+        .valentine-question {
+            margin-top: 18px;
+            text-align: center;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.5s ease 1s;
+        }
+
+        .card.opened .valentine-question {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .valentine-question h2 {
+            font-size: 17px;
+            color: #c2185b;
+            margin-bottom: 14px;
+        }
+
+        .btn-container {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            position: relative;
+            min-height: 44px;
+        }
+
+        .btn-yes, .btn-no {
+            padding: 10px 28px;
+            border: none;
+            border-radius: 30px;
+            font-family: 'Georgia', serif;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-yes {
+            background: linear-gradient(135deg, #e91e63, #c2185b);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(233, 30, 99, 0.4);
+        }
+
+        .btn-yes:hover {
+            transform: scale(1.08);
+            box-shadow: 0 6px 20px rgba(233, 30, 99, 0.5);
+        }
+
+        .btn-no {
+            background: #f5f5f5;
+            color: #888;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            position: relative;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .btn-no.escaped {
+            position: absolute;
+        }
+
+        .btn-no:hover {
+            transform: scale(1.05);
+        }
+
+        /* Sparkles on open */
+        .sparkle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: #e91e63;
+            border-radius: 50%;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .card.opened .sparkle {
+            animation: sparkle 1s ease-out forwards;
+        }
+
+        @keyframes sparkle {
+            0% { transform: translate(0, 0) scale(0); opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        /* Confetti overlay */
+        .confetti-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .confetti-piece {
+            position: absolute;
+            top: -20px;
+            width: 10px;
+            height: 10px;
+            opacity: 0;
+            animation: confettiFall linear forwards;
+        }
+
+        @keyframes confettiFall {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            80% { opacity: 1; }
+            100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+        }
+
+        /* Yay screen */
+        .yay-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .yay-overlay.show {
+            opacity: 1;
+        }
+
+        .yay-text {
+            font-size: 80px;
+            color: #e91e63;
+            text-shadow: 0 4px 30px rgba(233, 30, 99, 0.4);
+            animation: yayBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+            transform: scale(0);
+        }
+
+        @keyframes yayBounce {
+            0% { transform: scale(0) rotate(-10deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+
+        .yay-hearts {
+            font-size: 50px;
+            margin-top: 16px;
+            animation: yayBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s forwards;
+            transform: scale(0);
+        }
+
+        @media (max-width: 400px) {
+            .card { width: 280px; height: 400px; }
+            .cover-heart { font-size: 60px; }
+            .inside-message h1 { font-size: 20px; }
+            .inside-message .name { font-size: 30px; }
+            .yay-text { font-size: 56px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="hearts-bg" id="heartsBg"></div>
+
+    <div class="card-scene" id="cardScene">
+        <div class="card" id="card">
+            <!-- Cover -->
+            <div class="card-cover" onclick="openCard()">
+                <div class="cover-heart">&#10084;&#65039;</div>
+                <div class="cover-text">Valentine's Day</div>
+                <div class="cover-hint">click to open</div>
+            </div>
+
+            <!-- Inside -->
+            <div class="card-inside">
+                <div class="inside-hearts">&#128149; &#10084;&#65039; &#128149;</div>
+                <div class="inside-message">
+                    <h1>Happy Valentine's Day
+                        <span class="name">Gautami</span>
+                    </h1>
+                    <p>You make every day brighter<br>and every moment sweeter.</p>
+                </div>
+                <div class="valentine-question">
+                    <h2>Will you be my Valentine?</h2>
+                    <div class="btn-container" id="btnContainer">
+                        <button class="btn-yes" onclick="sayYes(event)">Yes!</button>
+                        <button class="btn-no" id="btnNo" onclick="runAway(event)">No</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sparkles -->
+            <div class="sparkle" style="top:20%;left:60%;animation-delay:0.3s;background:#ff4081;"></div>
+            <div class="sparkle" style="top:30%;left:75%;animation-delay:0.5s;background:#f48fb1;"></div>
+            <div class="sparkle" style="top:50%;left:55%;animation-delay:0.4s;background:#e91e63;"></div>
+            <div class="sparkle" style="top:15%;left:80%;animation-delay:0.6s;background:#ff80ab;"></div>
+            <div class="sparkle" style="top:70%;left:65%;animation-delay:0.7s;background:#f06292;"></div>
+            <div class="sparkle" style="top:40%;left:85%;animation-delay:0.35s;background:#ec407a;"></div>
+        </div>
+    </div>
+
+    <div class="yay-overlay" id="yayOverlay">
+        <div class="yay-text">Yayyy!</div>
+        <div class="yay-hearts">&#128149; &#10084;&#65039; &#128149; &#128152; &#10084;&#65039; &#128149;</div>
+    </div>
+    <div class="confetti-overlay" id="confettiOverlay"></div>
+
+    <script>
+        // Floating hearts background
+        (function createFloatingHearts() {
+            var bg = document.getElementById('heartsBg');
+            var hearts = ['\u2764', '\u2665', '\u2763', '\uD83D\uDC95', '\uD83D\uDC96'];
+            for (var i = 0; i < 20; i++) {
+                var heart = document.createElement('div');
+                heart.className = 'floating-heart';
+                heart.textContent = hearts[Math.floor(Math.random() * hearts.length)];
+                heart.style.left = Math.random() * 100 + '%';
+                heart.style.fontSize = (14 + Math.random() * 18) + 'px';
+                heart.style.animationDuration = (6 + Math.random() * 8) + 's';
+                heart.style.animationDelay = (Math.random() * 10) + 's';
+                bg.appendChild(heart);
+            }
+        })();
+
+        // Sparkle burst on open
+        function createSparkles() {
+            var card = document.getElementById('card');
+            for (var i = 0; i < 12; i++) {
+                var s = document.createElement('div');
+                s.className = 'sparkle';
+                s.style.top = (20 + Math.random() * 60) + '%';
+                s.style.left = (50 + Math.random() * 45) + '%';
+                s.style.animationDelay = (0.2 + Math.random() * 0.6) + 's';
+                var colors = ['#e91e63','#ff4081','#f48fb1','#ff80ab','#f06292','#ec407a'];
+                s.style.background = colors[Math.floor(Math.random() * colors.length)];
+                s.style.width = s.style.height = (4 + Math.random() * 6) + 'px';
+                card.appendChild(s);
+            }
+        }
+
+        var opened = false;
+        function openCard() {
+            var card = document.getElementById('card');
+            if (!opened) {
+                card.classList.add('opened');
+                createSparkles();
+                opened = true;
+            }
+        }
+
+        // No button runs away
+        function runAway(e) {
+            e.stopPropagation();
+            var btn = document.getElementById('btnNo');
+            btn.classList.add('escaped');
+
+            var maxX = 120;
+            var maxY = 80;
+            var randX = -maxX + Math.random() * (maxX * 2);
+            var randY = -maxY + Math.random() * (maxY * 2);
+
+            btn.style.left = 'calc(50% + ' + randX + 'px)';
+            btn.style.top = randY + 'px';
+        }
+
+        // Yes button - confetti and yay
+        function sayYes(e) {
+            e.stopPropagation();
+            launchConfetti();
+            document.getElementById('yayOverlay').classList.add('show');
+
+            // Hide the card
+            var scene = document.getElementById('cardScene');
+            scene.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            scene.style.opacity = '0';
+            scene.style.transform = 'scale(0.8)';
+        }
+
+        function launchConfetti() {
+            var overlay = document.getElementById('confettiOverlay');
+            var colors = ['#e91e63','#ff4081','#f48fb1','#ff80ab','#f06292','#ec407a',
+                          '#ff5252','#ff1744','#d50000','#ff6f00','#ffd600','#ffab00',
+                          '#e040fb','#aa00ff','#6200ea','#304ffe'];
+            var shapes = ['circle', 'rect'];
+
+            for (var i = 0; i < 120; i++) {
+                var piece = document.createElement('div');
+                piece.className = 'confetti-piece';
+                var color = colors[Math.floor(Math.random() * colors.length)];
+                var shape = shapes[Math.floor(Math.random() * shapes.length)];
+
+                piece.style.left = Math.random() * 100 + '%';
+                piece.style.background = color;
+                piece.style.width = (6 + Math.random() * 10) + 'px';
+                piece.style.height = (6 + Math.random() * 10) + 'px';
+                if (shape === 'circle') {
+                    piece.style.borderRadius = '50%';
+                } else {
+                    piece.style.borderRadius = '2px';
+                }
+                piece.style.animationDuration = (2 + Math.random() * 3) + 's';
+                piece.style.animationDelay = (Math.random() * 1.5) + 's';
+
+                overlay.appendChild(piece);
+            }
+        }
+    </script>
+</body>
+</html>
