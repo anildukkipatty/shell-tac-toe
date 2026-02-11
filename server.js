@@ -434,6 +434,7 @@ wss.on('connection', (ws) => {
               sendJSON(game.players[sym].ws, {
                 type: 'restarted',
                 symbol: sym,
+                gameId: game.id,
                 opponentName: game.players[opponent(sym)].username,
                 yourUsername: game.players[sym].username,
                 firstTurn: game.firstPlayer,

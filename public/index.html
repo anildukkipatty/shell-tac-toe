@@ -741,7 +741,7 @@
                     document.getElementById('disconnectedBanner').style.display = 'none';
                     document.getElementById('shellInventory').style.display = 'block';
                     document.getElementById('log').innerHTML = '';
-                    saveSession(ws._gameId || localStorage.getItem('stt_gameId'), myUsername);
+                    saveSession(msg.gameId, myUsername);
                     addLog('Rematch! You are <span class="entry-' + mySymbol.toLowerCase() + '">' + mySymbol + '</span>. ' +
                         (msg.firstTurn === mySymbol ? 'Your turn!' : opponentName + ' goes first.'));
                     showToast('Rematch started!', 'success');
@@ -1103,7 +1103,6 @@
         // --- Game Over ---
         function handleGameOver(msg) {
             isGameOver = true;
-            clearSession();
 
             // Render final board with mine reveals
             var boardEl = document.getElementById('board');
