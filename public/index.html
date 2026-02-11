@@ -133,6 +133,8 @@
         }
 
         .game-id-display .hint { font-size: 13px; color: #666; }
+        .game-id-display .hint.clickable { cursor: pointer; }
+        .game-id-display .hint.clickable:hover { color: #999; }
 
         .waiting-msg {
             display: none;
@@ -520,7 +522,7 @@
             <div class="game-id-display" id="gameIdDisplay">
                 <div class="hint">Share this code with your opponent:</div>
                 <div class="code" id="gameCode" onclick="copyGameCode()"></div>
-                <div class="hint">Click to copy</div>
+                <div class="hint clickable" onclick="copyGameCode()">Click to copy</div>
             </div>
             <div class="waiting-msg" id="waitingMsg">Waiting for opponent to join...</div>
             <div class="join-section" id="joinSection">
@@ -800,7 +802,31 @@
 
         function copyGameCode() {
             var code = document.getElementById('gameCode').textContent;
-            navigator.clipboard.writeText(code).then(function() { showToast('Code copied!', 'success'); });
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(code).then(function() {
+                    showToast('Code copied!', 'success');
+                }, function() {
+                    fallbackCopy(code);
+                });
+            } else {
+                fallbackCopy(code);
+            }
+        }
+
+        function fallbackCopy(text) {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try {
+                document.execCommand('copy');
+                showToast('Code copied!', 'success');
+            } catch (e) {
+                showToast('Copy failed — select manually', 'fail');
+            }
+            document.body.removeChild(ta);
         }
 
         function showGameScreen() {
