@@ -99,6 +99,20 @@
             box-shadow: 0 4px 20px rgba(255, 210, 0, 0.3);
         }
 
+        .lobby-btn.primary.loading {
+            opacity: 0.6;
+            cursor: not-allowed;
+            pointer-events: none;
+            transform: none;
+            box-shadow: none;
+            animation: btnPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes btnPulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.7; }
+        }
+
         .game-id-display {
             display: none;
             flex-direction: column;
@@ -457,6 +471,18 @@
 
         .back-btn:hover { border-color: #ffd200; color: #ffd200; }
 
+        .rematch-btn {
+            padding: 8px 20px;
+            font-size: 14px;
+        }
+
+        .rematch-btn.waiting {
+            opacity: 0.6;
+            cursor: not-allowed;
+            pointer-events: none;
+            animation: btnPulse 1.5s ease-in-out infinite;
+        }
+
         .disconnected-banner {
             display: none;
             background: rgba(255, 107, 107, 0.1);
@@ -488,7 +514,7 @@
         <div class="lobby" id="lobby">
             <input type="text" id="usernameInput" placeholder="Enter your name" maxlength="20">
             <div class="lobby-row">
-                <button class="lobby-btn primary" onclick="createGame()">Create Game</button>
+                <button class="lobby-btn primary" id="createBtn" onclick="createGame()">Create Game</button>
                 <button class="lobby-btn" onclick="showJoinSection()">Join Game</button>
             </div>
             <div class="game-id-display" id="gameIdDisplay">
@@ -540,6 +566,7 @@
             <div class="log" id="log"></div>
 
             <div style="display:flex;gap:12px;">
+                <button class="lobby-btn primary rematch-btn" id="rematchBtn" onclick="requestRematch()" style="display:none;">Rematch</button>
                 <button class="back-btn" onclick="backToLobby()">Leave</button>
                 <button class="rules-btn" onclick="toggleRules()">Rules</button>
             </div>
@@ -576,14 +603,42 @@
         var SHELL_LABELS = { mine: 'Mine', shovel: 'Shovel', flip: 'Flip' };
         var SHELL_ICONS = { mine: '\uD83D\uDCA3', shovel: '\u26CF\uFE0F', flip: '\uD83D\uDD04' };
 
+        // --- localStorage persistence ---
+        function getUserId() {
+            var id = localStorage.getItem('stt_userId');
+            if (!id) {
+                id = 'u_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+                localStorage.setItem('stt_userId', id);
+            }
+            return id;
+        }
+
+        function saveSession(gameId, username) {
+            localStorage.setItem('stt_gameId', gameId);
+            localStorage.setItem('stt_username', username);
+        }
+
+        function clearSession() {
+            localStorage.removeItem('stt_gameId');
+            localStorage.removeItem('stt_username');
+        }
+
+        function getSavedSession() {
+            var gameId = localStorage.getItem('stt_gameId');
+            var username = localStorage.getItem('stt_username');
+            if (gameId) return { gameId: gameId, username: username || 'Player' };
+            return null;
+        }
+
         // --- WebSocket ---
-        function connectWS() {
+        function connectWS(onOpen) {
             var protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
             ws = new WebSocket(protocol + '//' + location.host);
             ws.onmessage = function(e) { handleMessage(JSON.parse(e.data)); };
             ws.onclose = function() {
                 if (!isGameOver) showToast('Connection lost', 'fail');
             };
+            if (onOpen) ws.onopen = onOpen;
         }
 
         function sendMsg(obj) {
@@ -598,12 +653,14 @@
                     document.getElementById('gameIdDisplay').style.display = 'flex';
                     document.getElementById('waitingMsg').style.display = 'block';
                     document.getElementById('joinSection').style.display = 'none';
+                    saveSession(msg.gameId, document.getElementById('usernameInput').value.trim() || 'Player');
                     break;
 
                 case 'started':
                     mySymbol = msg.symbol;
                     opponentName = msg.opponentName;
                     myUsername = msg.yourUsername;
+                    saveSession(msg.gameId, myUsername);
                     showGameScreen();
                     addLog('Game started! You are <span class="entry-' + mySymbol.toLowerCase() + '">' + mySymbol + '</span>. ' +
                         (msg.firstTurn === mySymbol ? 'Your turn!' : opponentName + ' goes first.'));
@@ -626,21 +683,97 @@
                     showToast(msg.message, 'fail');
                     document.getElementById('lobbyError').textContent = msg.message;
                     document.getElementById('lobbyError').style.display = 'block';
+                    setCreateBtnLoading(false);
                     break;
 
                 case 'opponentDisconnected':
                     document.getElementById('disconnectedBanner').style.display = 'block';
                     showToast('Opponent disconnected', 'fail');
                     break;
+
+                case 'opponentReconnected':
+                    document.getElementById('disconnectedBanner').style.display = 'none';
+                    showToast('Opponent reconnected!', 'success');
+                    break;
+
+                case 'reconnected':
+                    mySymbol = msg.symbol;
+                    myUsername = msg.yourUsername;
+                    opponentName = msg.opponentName || '';
+                    if (msg.gameStarted) {
+                        showGameScreen();
+                        addLog('Reconnected to game as <span class="entry-' + mySymbol.toLowerCase() + '">' + mySymbol + '</span>.');
+                        showToast('Reconnected!', 'success');
+                    } else {
+                        // Game hasn't started yet — go back to lobby waiting state
+                        document.getElementById('gameCode').textContent = msg.gameId;
+                        document.getElementById('gameIdDisplay').style.display = 'flex';
+                        document.getElementById('waitingMsg').style.display = 'block';
+                        document.getElementById('joinSection').style.display = 'none';
+                        showToast('Reconnected — waiting for opponent', 'info');
+                    }
+                    break;
+
+                case 'reconnectFailed':
+                    clearSession();
+                    showToast('Could not rejoin game', 'fail');
+                    break;
+
+                case 'kicked':
+                    clearSession();
+                    isGameOver = true;
+                    showToast('Connected from another tab', 'info');
+                    break;
+
+                case 'opponentWantsRestart':
+                    showToast('Opponent wants a rematch!', 'info');
+                    break;
+
+                case 'restarted':
+                    mySymbol = msg.symbol;
+                    opponentName = msg.opponentName;
+                    myUsername = msg.yourUsername;
+                    isGameOver = false;
+                    resetActionMode();
+                    document.getElementById('rematchBtn').style.display = 'none';
+                    document.getElementById('rematchBtn').classList.remove('waiting');
+                    document.getElementById('rematchBtn').textContent = 'Rematch';
+                    document.getElementById('disconnectedBanner').style.display = 'none';
+                    document.getElementById('shellInventory').style.display = 'block';
+                    document.getElementById('log').innerHTML = '';
+                    saveSession(ws._gameId || localStorage.getItem('stt_gameId'), myUsername);
+                    addLog('Rematch! You are <span class="entry-' + mySymbol.toLowerCase() + '">' + mySymbol + '</span>. ' +
+                        (msg.firstTurn === mySymbol ? 'Your turn!' : opponentName + ' goes first.'));
+                    showToast('Rematch started!', 'success');
+                    break;
             }
         }
 
         // --- Lobby ---
+        function setCreateBtnLoading(loading) {
+            var btn = document.getElementById('createBtn');
+            if (loading) {
+                btn.textContent = 'Creating...';
+                btn.classList.add('loading');
+            } else {
+                btn.textContent = 'Create Game';
+                btn.classList.remove('loading');
+            }
+        }
+
         function createGame() {
             var username = document.getElementById('usernameInput').value.trim() || 'Player';
             document.getElementById('lobbyError').style.display = 'none';
-            connectWS();
-            ws.onopen = function() { sendMsg({ type: 'create', username: username }); };
+            setCreateBtnLoading(true);
+            connectWS(function() {
+                sendMsg({ type: 'create', username: username, userId: getUserId() });
+            });
+            ws.onerror = function() { setCreateBtnLoading(false); };
+            var origOnClose = ws.onclose;
+            ws.onclose = function() {
+                setCreateBtnLoading(false);
+                if (origOnClose) origOnClose();
+            };
         }
 
         function showJoinSection() {
@@ -660,8 +793,9 @@
                 return;
             }
             document.getElementById('lobbyError').style.display = 'none';
-            connectWS();
-            ws.onopen = function() { sendMsg({ type: 'join', gameId: gameId, username: username }); };
+            connectWS(function() {
+                sendMsg({ type: 'join', gameId: gameId, username: username, userId: getUserId() });
+            });
         }
 
         function copyGameCode() {
@@ -679,6 +813,7 @@
         }
 
         function backToLobby() {
+            clearSession();
             if (ws) { ws.close(); ws = null; }
             mySymbol = null;
             gameState = null;
@@ -692,6 +827,9 @@
             document.getElementById('lobbyError').style.display = 'none';
             document.getElementById('disconnectedBanner').style.display = 'none';
             document.getElementById('shellInventory').style.display = 'none';
+            document.getElementById('rematchBtn').style.display = 'none';
+            document.getElementById('rematchBtn').classList.remove('waiting');
+            document.getElementById('rematchBtn').textContent = 'Rematch';
             document.getElementById('log').innerHTML = '';
         }
 
@@ -946,8 +1084,13 @@
                     break;
 
                 case 'useFlip':
-                    addLog('You <span class="entry-gold">flipped</span> opponent\'s coin on cell ' + (msg.cell + 1) + ' to yours!');
-                    showToast('Coin flipped!', 'success');
+                    if (msg.success === false && msg.reason === 'wouldWin') {
+                        addLog('<span class="entry-gold">Flip blocked!</span> Can\'t flip to win.');
+                        showToast("Flip blocked! Can't use flip to win the game.", 'fail');
+                    } else {
+                        addLog('You <span class="entry-gold">flipped</span> opponent\'s coin on cell ' + (msg.cell + 1) + ' to yours!');
+                        showToast('Coin flipped!', 'success');
+                    }
                     break;
 
                 case 'opponentFlip':
@@ -960,6 +1103,7 @@
         // --- Game Over ---
         function handleGameOver(msg) {
             isGameOver = true;
+            clearSession();
 
             // Render final board with mine reveals
             var boardEl = document.getElementById('board');
@@ -1030,6 +1174,19 @@
                 setStatus(opponentName + ' wins! Three in a row.', 'lose');
                 addLog('<span class="entry-' + msg.winner.toLowerCase() + '">' + opponentName + ' wins.</span> Three in a row.');
             }
+
+            // Show rematch button
+            var rematchBtn = document.getElementById('rematchBtn');
+            rematchBtn.style.display = 'inline-block';
+            rematchBtn.textContent = 'Rematch';
+            rematchBtn.classList.remove('waiting');
+        }
+
+        function requestRematch() {
+            var btn = document.getElementById('rematchBtn');
+            btn.textContent = 'Waiting for opponent...';
+            btn.classList.add('waiting');
+            sendMsg({ type: 'restart' });
         }
 
         // --- Helpers ---
@@ -1055,6 +1212,16 @@
         document.getElementById('gameIdInput').addEventListener('keydown', function(e) {
             if (e.key === 'Enter') joinGame();
         });
+
+        // --- Auto-reconnect on page load ---
+        (function() {
+            var session = getSavedSession();
+            if (session) {
+                connectWS(function() {
+                    sendMsg({ type: 'reconnect', gameId: session.gameId, userId: getUserId() });
+                });
+            }
+        })();
     </script>
 </body>
 </html>

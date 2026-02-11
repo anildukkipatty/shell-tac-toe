@@ -6,6 +6,7 @@ const crypto = require('crypto');
 
 const PORT = process.env.PORT || 3000;
 const games = new Map();
+const CLEANUP_DELAY = 180000; // 3 minutes
 
 // --- HTTP server: serve static files from public/ ---
 const server = http.createServer((req, res) => {
@@ -36,6 +37,10 @@ const wss = new WebSocketServer({ server });
 
 function generateId() {
   return crypto.randomBytes(3).toString('hex').toUpperCase();
+}
+
+function generateUserId() {
+  return crypto.randomBytes(16).toString('hex');
 }
 
 const WIN_LINES = [
@@ -71,6 +76,7 @@ function createGameState(id) {
     firstPlayer: null,
     winner: null,
     winCells: null,
+    restartVotes: { X: false, O: false },
   };
 }
 
@@ -205,22 +211,25 @@ wss.on('connection', (ws) => {
     switch (msg.type) {
       case 'create': {
         const username = (msg.username || 'Player').toString().slice(0, 20);
+        const userId = msg.userId || generateUserId();
         const gameId = generateId();
         const game = createGameState(gameId);
 
         const creatorSymbol = Math.random() < 0.5 ? 'X' : 'O';
-        game.players[creatorSymbol] = { ws, username };
+        game.players[creatorSymbol] = { ws, username, userId };
         games.set(gameId, game);
         ws._gameId = gameId;
         ws._symbol = creatorSymbol;
+        ws._userId = userId;
 
-        sendJSON(ws, { type: 'created', gameId, symbol: creatorSymbol });
+        sendJSON(ws, { type: 'created', gameId, symbol: creatorSymbol, userId });
         break;
       }
 
       case 'join': {
         const gameId = (msg.gameId || '').toString().toUpperCase().trim();
         const username = (msg.username || 'Player').toString().slice(0, 20);
+        const userId = msg.userId || generateUserId();
         const game = games.get(gameId);
 
         if (!game) {
@@ -233,9 +242,10 @@ wss.on('connection', (ws) => {
         }
 
         const joinerSymbol = game.players.X ? 'O' : 'X';
-        game.players[joinerSymbol] = { ws, username };
+        game.players[joinerSymbol] = { ws, username, userId };
         ws._gameId = gameId;
         ws._symbol = joinerSymbol;
+        ws._userId = userId;
 
         game.firstPlayer = Math.random() < 0.5 ? 'X' : 'O';
         game.currentTurn = game.firstPlayer;
@@ -245,6 +255,7 @@ wss.on('connection', (ws) => {
             sendJSON(game.players[sym].ws, {
               type: 'started',
               symbol: sym,
+              gameId,
               opponentName: game.players[opponent(sym)].username,
               firstTurn: game.firstPlayer,
               yourUsername: game.players[sym].username,
@@ -356,6 +367,15 @@ wss.on('connection', (ws) => {
         if (isNaN(cell) || cell < 0 || cell > 8) { sendError(ws, 'Invalid cell'); return; }
         if (game.board[cell] !== opp) { sendError(ws, 'Not an opponent cell'); return; }
 
+        // Simulate flip and check if it would win
+        game.board[cell] = symbol;
+        const wouldWin = checkWin(game.board);
+        game.board[cell] = opp; // revert
+        if (wouldWin && wouldWin.winner === symbol) {
+          sendJSON(ws, { type: 'actionResult', action: 'useFlip', cell, success: false, reason: 'wouldWin' });
+          return;
+        }
+
         game.shells[symbol].splice(flipIdx, 1);
         game.board[cell] = symbol;
 
@@ -366,6 +386,143 @@ wss.on('connection', (ws) => {
 
         if (checkGameEnd(game)) return;
         advanceTurn(game);
+        break;
+      }
+
+      case 'restart': {
+        const game = games.get(ws._gameId);
+        const symbol = ws._symbol;
+        if (!game) { sendError(ws, 'No game'); return; }
+        if (!game.gameOver) { sendError(ws, 'Game is not over'); return; }
+
+        game.restartVotes[symbol] = true;
+        const opp = opponent(symbol);
+
+        // Notify opponent
+        if (game.players[opp] && game.players[opp].ws) {
+          sendJSON(game.players[opp].ws, { type: 'opponentWantsRestart' });
+        }
+
+        // Both voted — reset the game
+        if (game.restartVotes.X && game.restartVotes.O) {
+          // Optionally swap symbols
+          const swap = Math.random() < 0.5;
+          if (swap) {
+            const tmpPlayer = game.players.X;
+            game.players.X = game.players.O;
+            game.players.O = tmpPlayer;
+            // Update ws metadata
+            for (const sym of ['X', 'O']) {
+              if (game.players[sym] && game.players[sym].ws) {
+                game.players[sym].ws._symbol = sym;
+              }
+            }
+          }
+
+          game.board = Array(9).fill(0);
+          game.shells = { X: [], O: [] };
+          game.mines = { X: [], O: [] };
+          game.gameOver = false;
+          game.winner = null;
+          game.winCells = null;
+          game.restartVotes = { X: false, O: false };
+          game.firstPlayer = Math.random() < 0.5 ? 'X' : 'O';
+          game.currentTurn = game.firstPlayer;
+
+          for (const sym of ['X', 'O']) {
+            if (game.players[sym] && game.players[sym].ws) {
+              sendJSON(game.players[sym].ws, {
+                type: 'restarted',
+                symbol: sym,
+                opponentName: game.players[opponent(sym)].username,
+                yourUsername: game.players[sym].username,
+                firstTurn: game.firstPlayer,
+              });
+            }
+          }
+
+          broadcastState(game);
+        }
+
+        break;
+      }
+
+      case 'reconnect': {
+        const gameId = (msg.gameId || '').toString().toUpperCase().trim();
+        const userId = (msg.userId || '').toString();
+        const game = games.get(gameId);
+
+        if (!game) {
+          sendJSON(ws, { type: 'reconnectFailed', reason: 'Game not found' });
+          return;
+        }
+
+        // Find which symbol this userId belongs to
+        let reconnectSymbol = null;
+        for (const sym of ['X', 'O']) {
+          if (game.players[sym] && game.players[sym].userId === userId) {
+            reconnectSymbol = sym;
+            break;
+          }
+        }
+
+        if (!reconnectSymbol) {
+          sendJSON(ws, { type: 'reconnectFailed', reason: 'Not a player in this game' });
+          return;
+        }
+
+        // Close old socket if still connected
+        const oldWs = game.players[reconnectSymbol].ws;
+        if (oldWs && oldWs !== ws && oldWs.readyState === 1) {
+          sendJSON(oldWs, { type: 'kicked', reason: 'Reconnected from another tab' });
+          oldWs._gameId = null;
+          oldWs.close();
+        }
+
+        // Re-attach new socket
+        game.players[reconnectSymbol].ws = ws;
+        ws._gameId = gameId;
+        ws._symbol = reconnectSymbol;
+        ws._userId = userId;
+
+        const opp = opponent(reconnectSymbol);
+        const oppPlayer = game.players[opp];
+
+        sendJSON(ws, {
+          type: 'reconnected',
+          symbol: reconnectSymbol,
+          gameId,
+          opponentName: oppPlayer ? oppPlayer.username : null,
+          yourUsername: game.players[reconnectSymbol].username,
+          gameStarted: !!(game.currentTurn),
+        });
+
+        // Notify opponent that the player is back
+        if (oppPlayer && oppPlayer.ws) {
+          sendJSON(oppPlayer.ws, { type: 'opponentReconnected' });
+        }
+
+        // Send current game state if game has started
+        if (game.currentTurn || game.gameOver) {
+          sendJSON(ws, buildGameState(game, reconnectSymbol));
+          if (game.gameOver) {
+            sendJSON(ws, {
+              type: 'gameOver',
+              winner: game.winner,
+              winCells: game.winCells,
+              reason: 'reconnect_reveal',
+              board: game.board,
+              shells: game.shells,
+              mines: game.mines,
+              players: {
+                X: game.players.X ? game.players.X.username : null,
+                O: game.players.O ? game.players.O.username : null,
+              },
+              yourSymbol: reconnectSymbol,
+            });
+          }
+        }
+
         break;
       }
 
@@ -391,7 +548,7 @@ wss.on('connection', (ws) => {
       game.players[symbol].ws = null;
     }
 
-    setTimeout(() => tryCleanupGame(gameId), 5000);
+    setTimeout(() => tryCleanupGame(gameId), CLEANUP_DELAY);
   });
 });
 
