@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bid Tac Toe</title>
+    <title>Shell Tac Toe</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -64,9 +64,7 @@
             transition: border-color 0.2s;
         }
 
-        .lobby input:focus {
-            border-color: #ffd200;
-        }
+        .lobby input:focus { border-color: #ffd200; }
 
         .lobby-row {
             display: flex;
@@ -88,10 +86,7 @@
             transition: all 0.2s;
         }
 
-        .lobby-btn:hover {
-            border-color: #ffd200;
-            color: #ffd200;
-        }
+        .lobby-btn:hover { border-color: #ffd200; color: #ffd200; }
 
         .lobby-btn.primary {
             background: linear-gradient(135deg, #f7971e, #ffd200);
@@ -123,10 +118,7 @@
             cursor: pointer;
         }
 
-        .game-id-display .hint {
-            font-size: 13px;
-            color: #666;
-        }
+        .game-id-display .hint { font-size: 13px; color: #666; }
 
         .waiting-msg {
             display: none;
@@ -177,10 +169,6 @@
             box-shadow: 0 0 20px rgba(255, 210, 0, 0.15);
         }
 
-        .player-info.you {
-            border-color: #4ecdc4;
-        }
-
         .player-info .label {
             font-size: 13px;
             text-transform: uppercase;
@@ -201,8 +189,8 @@
         .player-info.x-player .symbol { color: #ff6b6b; }
         .player-info.o-player .symbol { color: #4ecdc4; }
 
-        .player-info .money {
-            font-size: 22px;
+        .shell-count {
+            font-size: 16px;
             font-weight: bold;
             color: #ffd200;
         }
@@ -213,7 +201,7 @@
             font-weight: bold;
         }
 
-        /* Status + turn actions row */
+        /* Status row */
         .status-row {
             display: flex;
             align-items: center;
@@ -230,57 +218,33 @@
         .status.win { color: #ffd200; font-weight: bold; }
         .status.lose { color: #ff6b6b; font-weight: bold; }
 
-        /* Turn tracker pills */
-        .turn-actions {
+        /* Action mode */
+        .action-mode {
             display: none;
-            gap: 8px;
             align-items: center;
+            gap: 10px;
         }
 
-        .action-pill {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            border: 1px solid #333;
-            background: #1a1a2e;
-            color: #555;
-        }
-
-        .action-pill.available {
-            color: #aaa;
-            border-color: #555;
-        }
-
-        .action-pill.used {
+        .mode-label {
+            font-size: 13px;
             color: #ffd200;
-            border-color: #ffd200;
-            background: rgba(255, 210, 0, 0.1);
+            font-weight: bold;
         }
 
-        .end-turn-btn {
-            padding: 8px 22px;
-            border: 2px solid #4ecdc4;
-            border-radius: 10px;
-            background: rgba(78, 205, 196, 0.1);
-            color: #4ecdc4;
-            font-size: 14px;
-            font-weight: bold;
+        .cancel-mode-btn {
+            padding: 4px 12px;
+            border: 1px solid #ff6b6b;
+            border-radius: 8px;
+            background: rgba(255, 107, 107, 0.1);
+            color: #ff6b6b;
+            font-size: 12px;
             cursor: pointer;
-            transition: all 0.2s;
             font-family: inherit;
             display: none;
         }
 
-        .end-turn-btn.visible {
-            display: inline-block;
-        }
-
-        .end-turn-btn:hover {
-            background: rgba(78, 205, 196, 0.2);
-            box-shadow: 0 0 15px rgba(78, 205, 196, 0.2);
+        .cancel-mode-btn:hover {
+            background: rgba(255, 107, 107, 0.2);
         }
 
         /* Board */
@@ -314,29 +278,32 @@
         .cell .x-mark { color: #ff6b6b; }
         .cell .o-mark { color: #4ecdc4; }
 
-        .cell .bid-tag {
-            position: absolute;
-            bottom: 6px;
-            right: 8px;
-            font-size: 11px;
-            color: #666;
-            font-weight: normal;
-            display: none;
-        }
-
-        .cell.reveal-bid .bid-tag {
-            display: block;
-        }
-
         .cell.win-cell {
             background: rgba(255, 210, 0, 0.1);
             border-color: #ffd200;
             box-shadow: 0 0 20px rgba(255, 210, 0, 0.2);
         }
 
-        .cell.just-placed {
-            border-color: #ffd200;
-            animation: popIn 0.3s ease;
+        .cell.has-mine::after {
+            content: '';
+            position: absolute;
+            bottom: 6px;
+            left: 6px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff6b6b;
+            opacity: 0.6;
+        }
+
+        .cell.revealed-mine::after {
+            content: '!';
+            position: absolute;
+            bottom: 2px;
+            left: 8px;
+            font-size: 11px;
+            color: #ff6b6b;
+            font-weight: bold;
         }
 
         @keyframes popIn {
@@ -345,101 +312,62 @@
             100% { transform: scale(1); }
         }
 
-        /* Modal */
-        .modal-backdrop {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 100;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s;
-        }
-
-        .modal-backdrop.show {
-            opacity: 1;
-            pointer-events: all;
-        }
-
-        .modal {
-            background: #1a1a2e;
-            border: 2px solid #333;
-            border-radius: 16px;
-            padding: 28px 32px;
-            text-align: center;
-            min-width: 300px;
-            transform: scale(0.9);
-            transition: transform 0.3s;
-        }
-
-        .modal-backdrop.show .modal {
-            transform: scale(1);
-        }
-
-        .modal h3 {
-            font-size: 20px;
-            margin-bottom: 8px;
-            color: #fff;
-        }
-
-        .modal p {
-            color: #999;
-            font-size: 14px;
-            margin-bottom: 20px;
-        }
-
-        .bid-input-group {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            margin-bottom: 20px;
-        }
-
-        .bid-input-group label {
-            color: #999;
-            font-size: 14px;
-        }
-
-        .bid-input-group input {
-            width: 80px;
-            padding: 8px 12px;
-            border: 2px solid #333;
-            border-radius: 8px;
-            background: #0f0f1a;
-            color: #ffd200;
-            font-size: 18px;
-            font-weight: bold;
-            text-align: center;
-            font-family: inherit;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        .bid-input-group input:focus {
-            border-color: #ffd200;
-        }
-
-        .confirm-btn {
-            padding: 10px 36px;
-            border: none;
+        /* Shell inventory */
+        .shell-inventory {
+            display: none;
+            width: 378px;
+            background: #12121f;
+            border: 1px solid #333;
             border-radius: 10px;
-            background: linear-gradient(135deg, #f7971e, #ffd200);
-            color: #0f0f1a;
-            font-size: 16px;
+            padding: 10px 14px;
+            min-height: 48px;
+        }
+
+        .inventory-label {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+
+        .shell-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .shell-pill {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
             font-weight: bold;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            border: 2px solid #333;
+            background: #1a1a2e;
+            transition: all 0.2s;
+            user-select: none;
             font-family: inherit;
         }
 
-        .confirm-btn:hover {
+        .shell-pill:hover:not(:disabled) {
+            border-color: #ffd200;
             transform: scale(1.05);
-            box-shadow: 0 4px 20px rgba(255, 210, 0, 0.3);
+        }
+
+        .shell-pill.selected {
+            border-color: #ffd200;
+            background: rgba(255, 210, 0, 0.15);
+            box-shadow: 0 0 10px rgba(255, 210, 0, 0.2);
+        }
+
+        .shell-pill.mine-shell    { color: #ff6b6b; }
+        .shell-pill.shovel-shell  { color: #4ecdc4; }
+        .shell-pill.flip-shell { color: #ffd200; }
+
+        .shell-pill:disabled {
+            opacity: 0.4;
+            cursor: default;
         }
 
         /* Toast */
@@ -458,10 +386,7 @@
             white-space: nowrap;
         }
 
-        .toast.show {
-            transform: translateX(-50%) translateY(0);
-        }
-
+        .toast.show { transform: translateX(-50%) translateY(0); }
         .toast.success { border-color: #4ecdc4; color: #4ecdc4; }
         .toast.fail { border-color: #ff6b6b; color: #ff6b6b; }
         .toast.info { border-color: #ffd200; color: #ffd200; }
@@ -487,7 +412,7 @@
         .log .entry-gold { color: #ffd200; }
         .log .entry-divider { color: #333; }
 
-        /* Rules tooltip */
+        /* Rules / buttons */
         .rules-btn {
             padding: 6px 16px;
             border: 1px solid #333;
@@ -530,10 +455,7 @@
             font-family: inherit;
         }
 
-        .back-btn:hover {
-            border-color: #ffd200;
-            color: #ffd200;
-        }
+        .back-btn:hover { border-color: #ffd200; color: #ffd200; }
 
         .disconnected-banner {
             display: none;
@@ -544,12 +466,23 @@
             color: #ff6b6b;
             font-size: 14px;
         }
+
+        /* New shell earned animation */
+        @keyframes shellEarned {
+            0% { transform: scale(0.5); opacity: 0; }
+            60% { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .shell-pill.just-earned {
+            animation: shellEarned 0.4s ease;
+        }
     </style>
 </head>
 <body>
     <div class="game-wrapper">
-        <h1>BID TAC TOE</h1>
-        <div class="subtitle">Outbid. Outplay. Outwin.</div>
+        <h1>SHELL TAC TOE</h1>
+        <div class="subtitle">Place. Power Up. Prevail.</div>
 
         <!-- Lobby Screen -->
         <div class="lobby" id="lobby">
@@ -579,26 +512,30 @@
                 <div class="player-info x-player" id="playerX">
                     <div class="label" id="labelX">X</div>
                     <div class="symbol">X</div>
-                    <div class="money" id="moneyX">$100</div>
+                    <div class="shell-count" id="shellCountX">Shells: 0</div>
                 </div>
                 <div class="vs">VS</div>
                 <div class="player-info o-player" id="playerO">
                     <div class="label" id="labelO">O</div>
                     <div class="symbol">O</div>
-                    <div class="money" id="moneyO">$100</div>
+                    <div class="shell-count" id="shellCountO">Shells: 0</div>
                 </div>
             </div>
 
             <div class="status-row">
                 <div class="status" id="status">Waiting...</div>
-                <div class="turn-actions" id="turnActions">
-                    <span class="action-pill" id="pillPlace">Place</span>
-                    <span class="action-pill" id="pillRemove">Remove</span>
+                <div class="action-mode" id="actionMode">
+                    <span class="mode-label" id="modeLabel"></span>
+                    <button class="cancel-mode-btn" id="cancelModeBtn" onclick="cancelShellMode()">Cancel</button>
                 </div>
-                <button class="end-turn-btn" id="endTurnBtn" onclick="endTurn()">End Turn</button>
             </div>
 
             <div class="board" id="board"></div>
+
+            <div class="shell-inventory" id="shellInventory">
+                <div class="inventory-label">Your Shells:</div>
+                <div class="shell-list" id="shellList"></div>
+            </div>
 
             <div class="log" id="log"></div>
 
@@ -608,27 +545,16 @@
             </div>
 
             <div class="rules-panel" id="rulesPanel">
-                Both players start with <strong>$100</strong>. On each turn you get <strong>2 possible actions</strong>:<br>
-                1. <strong>Place</strong> your coin on an empty cell (costs a bid)<br>
-                2. <strong>Remove</strong> opponent's coin (bid more than they paid to succeed)<br>
-                You can do <strong>both, or just one</strong>, then end your turn.<br>
-                If your remove bid is too low, you <strong>lose your money</strong> and their coin stays.<br>
-                Bids are <strong>hidden</strong> — revealed at game end.<br>
-                <strong>Go bankrupt</strong> or get <strong>3 in a row</strong> to decide the winner!
+                Standard <strong>Tic-Tac-Toe</strong> &mdash; get 3 in a row to win!<br><br>
+                On your turn, do <strong>one</strong> of:<br>
+                1. <strong>Place</strong> your coin on an empty cell (earns 1 random shell)<br>
+                2. <strong>Use a shell</strong> from your inventory<br><br>
+                <strong>Shell powers:</strong><br>
+                <strong style="color:#ff6b6b;">Mine</strong> &mdash; Place on empty cell (invisible to opponent). If they step on it, ALL their coins vanish!<br>
+                <strong style="color:#4ecdc4;">Shovel</strong> &mdash; Remove one of opponent's coins.<br>
+                <strong style="color:#ffd200;">Flip</strong> &mdash; Convert one of opponent's coins to yours.<br><br>
+                Opponent can see your <strong>shell count</strong> but not the types.
             </div>
-        </div>
-    </div>
-
-    <!-- Bid Modal -->
-    <div class="modal-backdrop" id="modal">
-        <div class="modal">
-            <h3 id="modalTitle">Place your coin</h3>
-            <p id="modalDesc">How much will you bid?</p>
-            <div class="bid-input-group">
-                <label>Bid: $</label>
-                <input type="number" id="bidInput" min="1" max="100" value="5">
-            </div>
-            <button class="confirm-btn" onclick="confirmBid()">Confirm</button>
         </div>
     </div>
 
@@ -639,35 +565,29 @@
         var ws = null;
         var mySymbol = null;
         var gameState = null;
-        var selectedCell = -1;
-        var selectedAction = '';
         var isGameOver = false;
         var opponentName = '';
         var myUsername = '';
+
+        // Action mode
+        var actionMode = 'place'; // 'place' | 'mine' | 'shovel' | 'flip'
+        var selectedShellIndex = -1;
+
+        var SHELL_LABELS = { mine: 'Mine', shovel: 'Shovel', flip: 'Flip' };
+        var SHELL_ICONS = { mine: '\uD83D\uDCA3', shovel: '\u26CF\uFE0F', flip: '\uD83D\uDD04' };
 
         // --- WebSocket ---
         function connectWS() {
             var protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
             ws = new WebSocket(protocol + '//' + location.host);
-
-            ws.onopen = function() {};
-
-            ws.onmessage = function(e) {
-                var msg = JSON.parse(e.data);
-                handleMessage(msg);
-            };
-
+            ws.onmessage = function(e) { handleMessage(JSON.parse(e.data)); };
             ws.onclose = function() {
-                if (!isGameOver) {
-                    showToast('Connection lost', 'fail');
-                }
+                if (!isGameOver) showToast('Connection lost', 'fail');
             };
         }
 
         function sendMsg(obj) {
-            if (ws && ws.readyState === 1) {
-                ws.send(JSON.stringify(obj));
-            }
+            if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj));
         }
 
         function handleMessage(msg) {
@@ -720,9 +640,7 @@
             var username = document.getElementById('usernameInput').value.trim() || 'Player';
             document.getElementById('lobbyError').style.display = 'none';
             connectWS();
-            ws.onopen = function() {
-                sendMsg({ type: 'create', username: username });
-            };
+            ws.onopen = function() { sendMsg({ type: 'create', username: username }); };
         }
 
         function showJoinSection() {
@@ -743,24 +661,21 @@
             }
             document.getElementById('lobbyError').style.display = 'none';
             connectWS();
-            ws.onopen = function() {
-                sendMsg({ type: 'join', gameId: gameId, username: username });
-            };
+            ws.onopen = function() { sendMsg({ type: 'join', gameId: gameId, username: username }); };
         }
 
         function copyGameCode() {
             var code = document.getElementById('gameCode').textContent;
-            navigator.clipboard.writeText(code).then(function() {
-                showToast('Code copied!', 'success');
-            });
+            navigator.clipboard.writeText(code).then(function() { showToast('Code copied!', 'success'); });
         }
 
         function showGameScreen() {
             document.getElementById('lobby').style.display = 'none';
-            document.getElementById('gameScreen').style.display = 'flex';
-            document.getElementById('gameScreen').style.flexDirection = 'column';
-            document.getElementById('gameScreen').style.alignItems = 'center';
-            document.getElementById('gameScreen').style.gap = '20px';
+            var gs = document.getElementById('gameScreen');
+            gs.style.display = 'flex';
+            gs.style.flexDirection = 'column';
+            gs.style.alignItems = 'center';
+            gs.style.gap = '20px';
         }
 
         function backToLobby() {
@@ -768,8 +683,7 @@
             mySymbol = null;
             gameState = null;
             isGameOver = false;
-            selectedCell = -1;
-            selectedAction = '';
+            resetActionMode();
             document.getElementById('lobby').style.display = 'flex';
             document.getElementById('gameScreen').style.display = 'none';
             document.getElementById('gameIdDisplay').style.display = 'none';
@@ -777,6 +691,7 @@
             document.getElementById('joinSection').style.display = 'none';
             document.getElementById('lobbyError').style.display = 'none';
             document.getElementById('disconnectedBanner').style.display = 'none';
+            document.getElementById('shellInventory').style.display = 'none';
             document.getElementById('log').innerHTML = '';
         }
 
@@ -786,55 +701,39 @@
 
             var xName = gameState.players.X || 'X';
             var oName = gameState.players.O || 'O';
+            var oppSymbol = mySymbol === 'X' ? 'O' : 'X';
 
-            // Labels: show "(You)" suffix for the player's own side
             document.getElementById('labelX').textContent = xName + (mySymbol === 'X' ? ' (You)' : '');
             document.getElementById('labelO').textContent = oName + (mySymbol === 'O' ? ' (You)' : '');
 
-            var oppSymbol = mySymbol === 'X' ? 'O' : 'X';
-            document.getElementById('money' + mySymbol).textContent = '$' + gameState.money[mySymbol];
-            document.getElementById('money' + oppSymbol).textContent = '$???';
+            // Shell counts
+            document.getElementById('shellCount' + mySymbol).textContent =
+                'Shells: ' + gameState.yourShells.length;
+            document.getElementById('shellCount' + oppSymbol).textContent =
+                'Shells: ' + gameState.opponentShellCount;
 
             document.getElementById('playerX').classList.toggle('active', gameState.currentTurn === 'X' && !gameState.gameOver);
             document.getElementById('playerO').classList.toggle('active', gameState.currentTurn === 'O' && !gameState.gameOver);
 
             var isMyTurn = gameState.currentTurn === mySymbol && !gameState.gameOver;
 
-            // Turn action pills
-            var actionsEl = document.getElementById('turnActions');
-            var pillPlace = document.getElementById('pillPlace');
-            var pillRemove = document.getElementById('pillRemove');
-            var endBtn = document.getElementById('endTurnBtn');
-
-            if (isMyTurn && gameState.turnState) {
-                actionsEl.style.display = 'flex';
-                pillPlace.className = 'action-pill ' + (gameState.turnState.placed ? 'used' : 'available');
-                pillRemove.className = 'action-pill ' + (gameState.turnState.removed ? 'used' : 'available');
-
-                if (gameState.turnState.placed || gameState.turnState.removed) {
-                    endBtn.classList.add('visible');
-                } else {
-                    endBtn.classList.remove('visible');
+            if (isMyTurn) {
+                if (actionMode === 'place') {
+                    if (gameState.yourShells.length > 0) {
+                        setStatus('Your turn \u2014 place a coin or use a shell');
+                    } else {
+                        setStatus('Your turn \u2014 place a coin');
+                    }
                 }
-
-                if (!gameState.turnState.placed && !gameState.turnState.removed) {
-                    setStatus('Your turn — place, remove, or both');
-                } else if (gameState.turnState.placed && !gameState.turnState.removed) {
-                    setStatus('You can also remove, or end turn');
-                } else if (!gameState.turnState.placed && gameState.turnState.removed) {
-                    setStatus('You can also place, or end turn');
-                } else {
-                    setStatus('Both actions used');
-                }
+                // If in shell mode, status is set by selectShell
             } else if (!gameState.gameOver) {
-                actionsEl.style.display = 'none';
-                endBtn.classList.remove('visible');
                 setStatus(opponentName + "'s turn...");
-            } else {
-                actionsEl.style.display = 'none';
-                endBtn.classList.remove('visible');
+                resetActionMode();
             }
 
+            // Show shell inventory during game
+            document.getElementById('shellInventory').style.display = 'block';
+            renderShellInventory(isMyTurn);
             renderBoard();
         }
 
@@ -842,30 +741,52 @@
             if (!gameState) return;
             var boardEl = document.getElementById('board');
             boardEl.innerHTML = '';
+
             for (var i = 0; i < 9; i++) {
                 var cell = document.createElement('div');
                 cell.className = 'cell';
                 cell.dataset.index = i;
+
                 if (gameState.board[i] !== 0) {
                     var mark = document.createElement('span');
                     mark.className = gameState.board[i] === 'X' ? 'x-mark' : 'o-mark';
                     mark.textContent = gameState.board[i];
                     cell.appendChild(mark);
-
-                    var tag = document.createElement('span');
-                    tag.className = 'bid-tag';
-                    if (gameState.bids[i] !== null && gameState.bids[i] !== '?') {
-                        tag.textContent = '$' + gameState.bids[i];
-                        cell.classList.add('reveal-bid');
-                    } else {
-                        tag.textContent = '$?';
-                    }
-                    cell.appendChild(tag);
                 }
+
+                // Show mine indicator for your own mines
+                if (gameState.yourMines && gameState.yourMines.indexOf(i) !== -1) {
+                    cell.classList.add('has-mine');
+                }
+
                 cell.addEventListener('click', (function(idx) {
                     return function() { onCellClick(idx); };
                 })(i));
                 boardEl.appendChild(cell);
+            }
+        }
+
+        function renderShellInventory(isMyTurn) {
+            var list = document.getElementById('shellList');
+            list.innerHTML = '';
+
+            if (!gameState || !gameState.yourShells || gameState.yourShells.length === 0) {
+                list.innerHTML = '<span style="color:#555;font-size:13px;">No shells yet</span>';
+                return;
+            }
+
+            for (var i = 0; i < gameState.yourShells.length; i++) {
+                var type = gameState.yourShells[i];
+                var pill = document.createElement('button');
+                var cssClass = type + '-shell';
+                pill.className = 'shell-pill ' + cssClass;
+                if (selectedShellIndex === i) pill.classList.add('selected');
+                pill.textContent = SHELL_ICONS[type] + ' ' + SHELL_LABELS[type];
+                pill.disabled = !isMyTurn;
+                pill.addEventListener('click', (function(idx) {
+                    return function() { selectShell(idx); };
+                })(i));
+                list.appendChild(pill);
             }
         }
 
@@ -875,147 +796,236 @@
             el.className = 'status' + (cls ? ' ' + cls : '');
         }
 
-        // --- Player Actions ---
+        // --- Action Mode ---
+        function selectShell(index) {
+            if (!gameState || gameState.currentTurn !== mySymbol || isGameOver) return;
+
+            var shellType = gameState.yourShells[index];
+
+            // Toggle off if clicking same shell
+            if (actionMode !== 'place' && selectedShellIndex === index) {
+                cancelShellMode();
+                return;
+            }
+
+            actionMode = shellType;
+            selectedShellIndex = index;
+
+            var modeEl = document.getElementById('actionMode');
+            var modeLabel = document.getElementById('modeLabel');
+            var cancelBtn = document.getElementById('cancelModeBtn');
+            modeEl.style.display = 'flex';
+            cancelBtn.style.display = 'inline-block';
+
+            switch (shellType) {
+                case 'mine':
+                    modeLabel.textContent = 'MINE \u2014 Click empty cell to place';
+                    setStatus('Using Mine shell');
+                    break;
+                case 'shovel':
+                    modeLabel.textContent = "SHOVEL \u2014 Click opponent's coin";
+                    setStatus('Using Shovel shell');
+                    break;
+                case 'flip':
+                    modeLabel.textContent = "FLIP \u2014 Click opponent's coin to convert";
+                    setStatus('Using Flip shell');
+                    break;
+            }
+
+            renderShellInventory(true);
+            renderBoard();
+        }
+
+        function cancelShellMode() {
+            resetActionMode();
+            if (gameState && !isGameOver) {
+                var isMyTurn = gameState.currentTurn === mySymbol;
+                renderShellInventory(isMyTurn);
+                renderBoard();
+                if (isMyTurn) {
+                    if (gameState.yourShells.length > 0) {
+                        setStatus('Your turn \u2014 place a coin or use a shell');
+                    } else {
+                        setStatus('Your turn \u2014 place a coin');
+                    }
+                }
+            }
+        }
+
+        function resetActionMode() {
+            actionMode = 'place';
+            selectedShellIndex = -1;
+            document.getElementById('actionMode').style.display = 'none';
+            document.getElementById('cancelModeBtn').style.display = 'none';
+        }
+
+        // --- Cell Click ---
         function onCellClick(idx) {
             if (!gameState || isGameOver) return;
             if (gameState.currentTurn !== mySymbol) {
                 showToast('Not your turn!', 'info');
                 return;
             }
-            if (gameState.money[mySymbol] < 1) {
-                showToast('You have no money left!', 'fail');
-                return;
-            }
 
             var oppSymbol = mySymbol === 'X' ? 'O' : 'X';
 
-            if (gameState.board[idx] === 0) {
-                // Place
-                if (gameState.turnState && gameState.turnState.placed) {
-                    showToast('Already placed this turn!', 'info');
-                    return;
-                }
-                selectedCell = idx;
-                selectedAction = 'place';
-                showModal('Place your coin', 'How much will you bid for cell ' + (idx + 1) + '?');
-            } else if (gameState.board[idx] === oppSymbol) {
-                // Remove attempt
-                if (gameState.turnState && gameState.turnState.removed) {
-                    showToast('Already tried a remove this turn!', 'info');
-                    return;
-                }
-                selectedCell = idx;
-                selectedAction = 'remove';
-                showModal("Remove opponent's coin", "Bid more than their hidden bid on cell " + (idx + 1) + " to remove it.");
-            } else {
-                showToast("That's already your spot!", 'info');
+            switch (actionMode) {
+                case 'place':
+                    if (gameState.board[idx] !== 0) {
+                        showToast('Cell is occupied!', 'info');
+                        return;
+                    }
+                    sendMsg({ type: 'place', cell: idx });
+                    break;
+
+                case 'mine':
+                    if (gameState.board[idx] !== 0) {
+                        showToast('Must place mine on empty cell!', 'info');
+                        return;
+                    }
+                    sendMsg({ type: 'useMine', cell: idx });
+                    resetActionMode();
+                    break;
+
+                case 'shovel':
+                    if (gameState.board[idx] !== oppSymbol) {
+                        showToast("Select an opponent's coin to remove!", 'info');
+                        return;
+                    }
+                    sendMsg({ type: 'useShovel', cell: idx });
+                    resetActionMode();
+                    break;
+
+                case 'flip':
+                    if (gameState.board[idx] !== oppSymbol) {
+                        showToast("Select an opponent's coin to flip!", 'info');
+                        return;
+                    }
+                    sendMsg({ type: 'useFlip', cell: idx });
+                    resetActionMode();
+                    break;
             }
-        }
-
-        function showModal(title, desc) {
-            document.getElementById('modalTitle').textContent = title;
-            document.getElementById('modalDesc').textContent = desc;
-            var input = document.getElementById('bidInput');
-            input.max = gameState.money[mySymbol];
-            input.value = Math.min(5, gameState.money[mySymbol]);
-            document.getElementById('modal').classList.add('show');
-            input.focus();
-            input.select();
-        }
-
-        function hideModal() {
-            document.getElementById('modal').classList.remove('show');
-        }
-
-        function confirmBid() {
-            var input = document.getElementById('bidInput');
-            var bid = parseInt(input.value);
-
-            if (isNaN(bid) || bid < 1) {
-                showToast('Minimum bid is $1!', 'fail');
-                return;
-            }
-            if (bid > gameState.money[mySymbol]) {
-                showToast("You don't have enough money!", 'fail');
-                return;
-            }
-
-            hideModal();
-            sendMsg({ type: selectedAction, cell: selectedCell, bid: bid });
-        }
-
-        function endTurn() {
-            sendMsg({ type: 'endTurn' });
         }
 
         // --- Action Results ---
         function handleActionResult(msg) {
-            if (msg.action === 'place' && msg.success) {
-                addLog('You placed <span class="entry-' + mySymbol.toLowerCase() + '">' + mySymbol + '</span> on cell ' + (msg.cell + 1) + ' for <span class="entry-gold">$' + msg.bid + '</span>');
-            } else if (msg.action === 'remove') {
-                if (msg.success) {
-                    addLog('You removed opponent\'s coin from cell ' + (msg.cell + 1) + ' (<span class="entry-gold">$' + msg.bid + '</span> vs <span class="entry-gold">$' + msg.opponentBid + '</span>)');
-                    showToast('Removed! They had bid $' + msg.opponentBid, 'success');
-                } else {
-                    addLog('Remove failed on cell ' + (msg.cell + 1) + ' (<span class="entry-gold">$' + msg.bid + '</span> vs <span class="entry-gold">$' + msg.opponentBid + '</span>). Lost <span class="entry-gold">$' + msg.bid + '</span>!');
-                    showToast('Failed! They had bid $' + msg.opponentBid, 'fail');
-                }
+            switch (msg.action) {
+                case 'place':
+                    if (msg.success) {
+                        addLog('You placed <span class="entry-' + mySymbol.toLowerCase() + '">' +
+                               mySymbol + '</span> on cell ' + (msg.cell + 1) +
+                               '. Shell earned: <span class="entry-gold">' + SHELL_LABELS[msg.newShell] + '</span>');
+                        showToast('Earned: ' + SHELL_ICONS[msg.newShell] + ' ' + SHELL_LABELS[msg.newShell], 'success');
+                    } else if (msg.reason === 'mine') {
+                        addLog('<span class="entry-gold">MINE!</span> You hit a mine on cell ' +
+                               (msg.cell + 1) + '! All your coins destroyed! ' +
+                               'Shell earned: <span class="entry-gold">' + SHELL_LABELS[msg.newShell] + '</span>');
+                        showToast('You hit a mine! All coins destroyed!', 'fail');
+                    }
+                    break;
+
+                case 'mineTriggered':
+                    addLog('<span class="entry-gold">Your mine was triggered!</span> ' +
+                           opponentName + "'s coins wiped out!");
+                    showToast('Your mine was triggered!', 'success');
+                    break;
+
+                case 'useMine':
+                    addLog('You placed a <span class="entry-gold">mine</span> on cell ' + (msg.cell + 1));
+                    showToast('Mine placed!', 'success');
+                    break;
+
+                case 'useShovel':
+                    addLog('You <span class="entry-gold">shoveled</span> opponent\'s coin from cell ' + (msg.cell + 1));
+                    showToast('Removed opponent coin!', 'success');
+                    break;
+
+                case 'opponentShovel':
+                    addLog(opponentName + ' <span class="entry-gold">shoveled</span> your coin from cell ' + (msg.cell + 1) + '!');
+                    showToast('Your coin was removed!', 'fail');
+                    break;
+
+                case 'useFlip':
+                    addLog('You <span class="entry-gold">flipped</span> opponent\'s coin on cell ' + (msg.cell + 1) + ' to yours!');
+                    showToast('Coin flipped!', 'success');
+                    break;
+
+                case 'opponentFlip':
+                    addLog(opponentName + ' <span class="entry-gold">flipped</span> your coin on cell ' + (msg.cell + 1) + '!');
+                    showToast('Your coin was flipped!', 'fail');
+                    break;
             }
         }
 
         // --- Game Over ---
         function handleGameOver(msg) {
             isGameOver = true;
-            gameState = {
-                board: msg.board,
-                bids: msg.bids,
-                money: msg.money,
-                currentTurn: null,
-                turnState: null,
-                gameOver: true,
-                yourSymbol: msg.yourSymbol,
-                players: msg.players,
-            };
 
-            // Render board with all bids revealed
+            // Render final board with mine reveals
             var boardEl = document.getElementById('board');
             boardEl.innerHTML = '';
+            var allMines = (msg.mines.X || []).concat(msg.mines.O || []);
+
             for (var i = 0; i < 9; i++) {
                 var cell = document.createElement('div');
-                cell.className = 'cell reveal-bid';
+                cell.className = 'cell';
                 if (msg.board[i] !== 0) {
                     var mark = document.createElement('span');
                     mark.className = msg.board[i] === 'X' ? 'x-mark' : 'o-mark';
                     mark.textContent = msg.board[i];
                     cell.appendChild(mark);
-
-                    var tag = document.createElement('span');
-                    tag.className = 'bid-tag';
-                    tag.textContent = '$' + msg.bids[i];
-                    cell.appendChild(tag);
                 }
                 if (msg.winCells && msg.winCells.indexOf(i) !== -1) {
                     cell.classList.add('win-cell');
                 }
+                if (allMines.indexOf(i) !== -1) {
+                    cell.classList.add('revealed-mine');
+                }
                 boardEl.appendChild(cell);
             }
 
-            // Update money display
-            document.getElementById('moneyX').textContent = '$' + (msg.money.X != null ? msg.money.X : '?');
-            document.getElementById('moneyO').textContent = '$' + (msg.money.O != null ? msg.money.O : '?');
+            // Show remaining shells for both
+            var revealHtml = '<span class="entry-divider">--- REVEAL ---</span>';
+            var syms = ['X', 'O'];
+            for (var s = 0; s < syms.length; s++) {
+                var sym = syms[s];
+                var name = msg.players[sym] || sym;
+                var shells = msg.shells[sym] || [];
+                var shellStrs = [];
+                for (var k = 0; k < shells.length; k++) {
+                    shellStrs.push(SHELL_LABELS[shells[k]] || shells[k]);
+                }
+                revealHtml += '<div>' + name + ' shells: ' +
+                    (shellStrs.length > 0 ? shellStrs.join(', ') : 'none') + '</div>';
+                if (msg.mines[sym] && msg.mines[sym].length > 0) {
+                    var mineCells = [];
+                    for (var m = 0; m < msg.mines[sym].length; m++) {
+                        mineCells.push('cell ' + (msg.mines[sym][m] + 1));
+                    }
+                    revealHtml += '<div>' + name + ' mines: ' + mineCells.join(', ') + '</div>';
+                }
+            }
+            addLog(revealHtml);
 
-            // Hide turn UI
-            document.getElementById('turnActions').style.display = 'none';
-            document.getElementById('endTurnBtn').classList.remove('visible');
+            // Update shell counts
+            var myShells = msg.shells[msg.yourSymbol] || [];
+            var oppSym = msg.yourSymbol === 'X' ? 'O' : 'X';
+            var oppShells = msg.shells[oppSym] || [];
+            document.getElementById('shellCount' + msg.yourSymbol).textContent = 'Shells: ' + myShells.length;
+            document.getElementById('shellCount' + oppSym).textContent = 'Shells: ' + oppShells.length;
+
+            // Hide shell inventory and action mode
+            document.getElementById('shellInventory').style.display = 'none';
+            resetActionMode();
             document.getElementById('playerX').classList.remove('active');
             document.getElementById('playerO').classList.remove('active');
 
             if (msg.winner === null) {
                 setStatus("It's a draw!", '');
-                addLog('Game over — draw!');
-            } else if (msg.winner === mySymbol) {
+                addLog('Game over \u2014 draw!');
+            } else if (msg.winner === msg.yourSymbol) {
                 setStatus('You win! Three in a row!', 'win');
-                addLog('<span class="entry-' + mySymbol.toLowerCase() + '">You win!</span> Three in a row!');
+                addLog('<span class="entry-' + msg.yourSymbol.toLowerCase() + '">You win!</span> Three in a row!');
             } else {
                 setStatus(opponentName + ' wins! Three in a row.', 'lose');
                 addLog('<span class="entry-' + msg.winner.toLowerCase() + '">' + opponentName + ' wins.</span> Three in a row.');
@@ -1028,9 +1038,7 @@
             toast.textContent = msg;
             toast.className = 'toast ' + type + ' show';
             clearTimeout(toast._timeout);
-            toast._timeout = setTimeout(function() {
-                toast.classList.remove('show');
-            }, 2500);
+            toast._timeout = setTimeout(function() { toast.classList.remove('show'); }, 2500);
         }
 
         function addLog(html) {
@@ -1043,13 +1051,7 @@
             document.getElementById('rulesPanel').classList.toggle('show');
         }
 
-        // Modal events
-        document.getElementById('modal').addEventListener('click', function(e) {
-            if (e.target === this) hideModal();
-        });
-        document.getElementById('bidInput').addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') confirmBid();
-        });
+        // Lobby enter key
         document.getElementById('gameIdInput').addEventListener('keydown', function(e) {
             if (e.key === 'Enter') joinGame();
         });

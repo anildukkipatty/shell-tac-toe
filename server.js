@@ -53,26 +53,25 @@ function checkWin(board) {
   return null;
 }
 
+const SHELL_TYPES = ['mine', 'shovel', 'flip'];
+
+function generateRandomShell() {
+  return SHELL_TYPES[Math.floor(Math.random() * SHELL_TYPES.length)];
+}
+
 function createGameState(id) {
   return {
     id,
     board: Array(9).fill(0),
-    bids: Array(9).fill(0),
-    money: { X: 100, O: 100 },
+    shells: { X: [], O: [] },
+    mines: { X: [], O: [] },
     currentTurn: null,
-    turnState: { placed: false, removed: false },
     players: { X: null, O: null },
     gameOver: false,
     firstPlayer: null,
     winner: null,
     winCells: null,
   };
-}
-
-function getPlayerSymbol(game, ws) {
-  if (game.players.X && game.players.X.ws === ws) return 'X';
-  if (game.players.O && game.players.O.ws === ws) return 'O';
-  return null;
 }
 
 function opponent(sym) {
@@ -89,26 +88,17 @@ function sendError(ws, message) {
   sendJSON(ws, { type: 'error', message });
 }
 
-// Build a game state payload tailored for a specific player (hides opponent bids)
 function buildGameState(game, forSymbol) {
-  const visibleBids = Array(9).fill(null);
-  for (let i = 0; i < 9; i++) {
-    if (game.board[i] === forSymbol) {
-      visibleBids[i] = game.bids[i];
-    } else if (game.board[i] !== 0) {
-      visibleBids[i] = '?'; // opponent's bid is hidden
-    }
-  }
-
+  const oppSymbol = opponent(forSymbol);
   return {
     type: 'gameState',
     board: game.board,
-    bids: visibleBids,
-    money: { [forSymbol]: game.money[forSymbol] },
     currentTurn: game.currentTurn,
-    turnState: game.currentTurn === forSymbol ? game.turnState : null,
     gameOver: game.gameOver,
     yourSymbol: forSymbol,
+    yourShells: game.shells[forSymbol],
+    opponentShellCount: game.shells[oppSymbol].length,
+    yourMines: game.mines[forSymbol],
     players: {
       X: game.players.X ? game.players.X.username : null,
       O: game.players.O ? game.players.O.username : null,
@@ -116,7 +106,6 @@ function buildGameState(game, forSymbol) {
   };
 }
 
-// Send full state to both players (each sees their own bids only)
 function broadcastState(game) {
   for (const sym of ['X', 'O']) {
     if (game.players[sym] && game.players[sym].ws) {
@@ -125,7 +114,6 @@ function broadcastState(game) {
   }
 }
 
-// Send game over with all bids revealed
 function broadcastGameOver(game, winner, winCells, reason) {
   game.gameOver = true;
   game.winner = winner;
@@ -137,8 +125,8 @@ function broadcastGameOver(game, winner, winCells, reason) {
     winCells,
     reason,
     board: game.board,
-    bids: game.bids, // reveal all bids
-    money: game.money,
+    shells: game.shells,
+    mines: game.mines,
     players: {
       X: game.players.X ? game.players.X.username : null,
       O: game.players.O ? game.players.O.username : null,
@@ -159,9 +147,8 @@ function checkGameEnd(game) {
     return true;
   }
 
-  // Both bankrupt and board full
   const boardFull = game.board.every(c => c !== 0);
-  if (game.money.X <= 0 && game.money.O <= 0 && boardFull) {
+  if (boardFull) {
     broadcastGameOver(game, null, null, 'draw');
     return true;
   }
@@ -169,7 +156,6 @@ function checkGameEnd(game) {
   return false;
 }
 
-// Clean up game if both players disconnected
 function tryCleanupGame(gameId) {
   const game = games.get(gameId);
   if (!game) return;
@@ -180,9 +166,33 @@ function tryCleanupGame(gameId) {
   }
 }
 
-wss.on('connection', (ws) => {
-  let playerGameId = null;
+function advanceTurn(game) {
+  game.currentTurn = opponent(game.currentTurn);
+  broadcastState(game);
+}
 
+// Process a single coin placement, checking for mines. Returns info about what happened.
+function processPlacement(game, symbol, cell) {
+  const opp = opponent(symbol);
+  const mineIndex = game.mines[opp].indexOf(cell);
+
+  if (mineIndex !== -1) {
+    // Mine triggered — wipe all of this player's coins
+    for (let i = 0; i < 9; i++) {
+      if (game.board[i] === symbol) {
+        game.board[i] = 0;
+      }
+    }
+    game.mines[opp].splice(mineIndex, 1);
+    // Cell stays empty
+    return { mineTriggered: true };
+  } else {
+    game.board[cell] = symbol;
+    return { mineTriggered: false };
+  }
+}
+
+wss.on('connection', (ws) => {
   ws.on('message', (raw) => {
     let msg;
     try {
@@ -198,11 +208,9 @@ wss.on('connection', (ws) => {
         const gameId = generateId();
         const game = createGameState(gameId);
 
-        // Creator gets a random symbol
         const creatorSymbol = Math.random() < 0.5 ? 'X' : 'O';
         game.players[creatorSymbol] = { ws, username };
         games.set(gameId, game);
-        playerGameId = gameId;
         ws._gameId = gameId;
         ws._symbol = creatorSymbol;
 
@@ -226,15 +234,12 @@ wss.on('connection', (ws) => {
 
         const joinerSymbol = game.players.X ? 'O' : 'X';
         game.players[joinerSymbol] = { ws, username };
-        playerGameId = gameId;
         ws._gameId = gameId;
         ws._symbol = joinerSymbol;
 
-        // Decide who goes first
         game.firstPlayer = Math.random() < 0.5 ? 'X' : 'O';
         game.currentTurn = game.firstPlayer;
 
-        // Notify both players the game has started
         for (const sym of ['X', 'O']) {
           if (game.players[sym] && game.players[sym].ws) {
             sendJSON(game.players[sym].ws, {
@@ -252,93 +257,114 @@ wss.on('connection', (ws) => {
       }
 
       case 'place': {
-        const gameId = ws._gameId;
+        const game = games.get(ws._gameId);
         const symbol = ws._symbol;
-        const game = games.get(gameId);
         if (!game) { sendError(ws, 'No game'); return; }
         if (game.gameOver) { sendError(ws, 'Game is over'); return; }
         if (game.currentTurn !== symbol) { sendError(ws, 'Not your turn'); return; }
-        if (game.turnState.placed) { sendError(ws, 'Already placed this turn'); return; }
 
         const cell = parseInt(msg.cell);
-        const bid = parseInt(msg.bid);
-
         if (isNaN(cell) || cell < 0 || cell > 8) { sendError(ws, 'Invalid cell'); return; }
         if (game.board[cell] !== 0) { sendError(ws, 'Cell is occupied'); return; }
-        if (isNaN(bid) || bid < 1) { sendError(ws, 'Minimum bid is $1'); return; }
-        if (bid > game.money[symbol]) { sendError(ws, 'Not enough money'); return; }
 
-        game.board[cell] = symbol;
-        game.bids[cell] = bid;
-        game.money[symbol] -= bid;
-        game.turnState.placed = true;
+        const opp = opponent(symbol);
+        const result = processPlacement(game, symbol, cell);
+        const newShell = generateRandomShell();
+        game.shells[symbol].push(newShell);
 
-        sendJSON(ws, { type: 'actionResult', action: 'place', cell, bid, success: true });
+        if (result.mineTriggered) {
+          sendJSON(ws, { type: 'actionResult', action: 'place', cell, success: false,
+                         reason: 'mine', newShell });
+          if (game.players[opp] && game.players[opp].ws) {
+            sendJSON(game.players[opp].ws, { type: 'actionResult', action: 'mineTriggered',
+                                              cell, victim: symbol });
+          }
+        } else {
+          sendJSON(ws, { type: 'actionResult', action: 'place', cell, success: true, newShell });
+        }
 
         if (checkGameEnd(game)) return;
-
-        // Auto end turn if both actions used or no money left
-        if ((game.turnState.placed && game.turnState.removed) || game.money[symbol] <= 0) {
-          advanceTurn(game);
-        } else {
-          broadcastState(game);
-        }
+        advanceTurn(game);
         break;
       }
 
-      case 'remove': {
-        const gameId = ws._gameId;
+      case 'useMine': {
+        const game = games.get(ws._gameId);
         const symbol = ws._symbol;
-        const game = games.get(gameId);
         if (!game) { sendError(ws, 'No game'); return; }
         if (game.gameOver) { sendError(ws, 'Game is over'); return; }
         if (game.currentTurn !== symbol) { sendError(ws, 'Not your turn'); return; }
-        if (game.turnState.removed) { sendError(ws, 'Already tried a remove this turn'); return; }
+
+        const mineIdx = game.shells[symbol].indexOf('mine');
+        if (mineIdx === -1) { sendError(ws, 'You have no Mine shell'); return; }
 
         const cell = parseInt(msg.cell);
-        const bid = parseInt(msg.bid);
-        const opp = opponent(symbol);
-
         if (isNaN(cell) || cell < 0 || cell > 8) { sendError(ws, 'Invalid cell'); return; }
-        if (game.board[cell] !== opp) { sendError(ws, 'Not an opponent cell'); return; }
-        if (isNaN(bid) || bid < 1) { sendError(ws, 'Minimum bid is $1'); return; }
-        if (bid > game.money[symbol]) { sendError(ws, 'Not enough money'); return; }
-
-        const opponentBid = game.bids[cell];
-        game.money[symbol] -= bid;
-        game.turnState.removed = true;
-
-        if (bid > opponentBid) {
-          game.board[cell] = 0;
-          game.bids[cell] = 0;
-          sendJSON(ws, { type: 'actionResult', action: 'remove', cell, bid, success: true, opponentBid });
-        } else {
-          sendJSON(ws, { type: 'actionResult', action: 'remove', cell, bid, success: false, opponentBid });
-        }
-
-        if (checkGameEnd(game)) return;
-
-        // Auto end turn if both actions used or no money left
-        if ((game.turnState.placed && game.turnState.removed) || game.money[symbol] <= 0) {
-          advanceTurn(game);
-        } else {
-          broadcastState(game);
-        }
-        break;
-      }
-
-      case 'endTurn': {
-        const gameId = ws._gameId;
-        const symbol = ws._symbol;
-        const game = games.get(gameId);
-        if (!game) { sendError(ws, 'No game'); return; }
-        if (game.gameOver) { sendError(ws, 'Game is over'); return; }
-        if (game.currentTurn !== symbol) { sendError(ws, 'Not your turn'); return; }
-        if (!game.turnState.placed && !game.turnState.removed) {
-          sendError(ws, 'Must take at least one action');
+        if (game.board[cell] !== 0) { sendError(ws, 'Cell must be empty'); return; }
+        if (game.mines[symbol].includes(cell) || game.mines[opponent(symbol)].includes(cell)) {
+          sendError(ws, 'Cell already has a mine');
           return;
         }
 
+        game.shells[symbol].splice(mineIdx, 1);
+        game.mines[symbol].push(cell);
+
+        sendJSON(ws, { type: 'actionResult', action: 'useMine', cell, success: true });
+        advanceTurn(game);
+        break;
+      }
+
+      case 'useShovel': {
+        const game = games.get(ws._gameId);
+        const symbol = ws._symbol;
+        if (!game) { sendError(ws, 'No game'); return; }
+        if (game.gameOver) { sendError(ws, 'Game is over'); return; }
+        if (game.currentTurn !== symbol) { sendError(ws, 'Not your turn'); return; }
+
+        const shovelIdx = game.shells[symbol].indexOf('shovel');
+        if (shovelIdx === -1) { sendError(ws, 'You have no Shovel shell'); return; }
+
+        const cell = parseInt(msg.cell);
+        const opp = opponent(symbol);
+        if (isNaN(cell) || cell < 0 || cell > 8) { sendError(ws, 'Invalid cell'); return; }
+        if (game.board[cell] !== opp) { sendError(ws, 'Not an opponent cell'); return; }
+
+        game.shells[symbol].splice(shovelIdx, 1);
+        game.board[cell] = 0;
+
+        sendJSON(ws, { type: 'actionResult', action: 'useShovel', cell, success: true });
+        if (game.players[opp] && game.players[opp].ws) {
+          sendJSON(game.players[opp].ws, { type: 'actionResult', action: 'opponentShovel', cell });
+        }
+
+        advanceTurn(game);
+        break;
+      }
+
+      case 'useFlip': {
+        const game = games.get(ws._gameId);
+        const symbol = ws._symbol;
+        if (!game) { sendError(ws, 'No game'); return; }
+        if (game.gameOver) { sendError(ws, 'Game is over'); return; }
+        if (game.currentTurn !== symbol) { sendError(ws, 'Not your turn'); return; }
+
+        const flipIdx = game.shells[symbol].indexOf('flip');
+        if (flipIdx === -1) { sendError(ws, 'You have no Flip shell'); return; }
+
+        const cell = parseInt(msg.cell);
+        const opp = opponent(symbol);
+        if (isNaN(cell) || cell < 0 || cell > 8) { sendError(ws, 'Invalid cell'); return; }
+        if (game.board[cell] !== opp) { sendError(ws, 'Not an opponent cell'); return; }
+
+        game.shells[symbol].splice(flipIdx, 1);
+        game.board[cell] = symbol;
+
+        sendJSON(ws, { type: 'actionResult', action: 'useFlip', cell, success: true });
+        if (game.players[opp] && game.players[opp].ws) {
+          sendJSON(game.players[opp].ws, { type: 'actionResult', action: 'opponentFlip', cell });
+        }
+
+        if (checkGameEnd(game)) return;
         advanceTurn(game);
         break;
       }
@@ -361,40 +387,14 @@ wss.on('connection', (ws) => {
       sendJSON(game.players[opp].ws, { type: 'opponentDisconnected' });
     }
 
-    // Mark this player's ws as null
     if (game.players[symbol]) {
       game.players[symbol].ws = null;
     }
 
-    // Clean up if both gone
     setTimeout(() => tryCleanupGame(gameId), 5000);
   });
 });
 
-function advanceTurn(game) {
-  game.turnState = { placed: false, removed: false };
-  game.currentTurn = opponent(game.currentTurn);
-
-  // Check if next player is bankrupt and board is full — they can't do anything
-  const nextSym = game.currentTurn;
-  if (game.money[nextSym] <= 0) {
-    // Check if there's any possible action: needs empty cell to place or opponent cell to remove
-    const canPlace = game.board.some(c => c === 0);
-    const canRemove = game.board.some(c => c === opponent(nextSym));
-    if (!canPlace && !canRemove) {
-      broadcastGameOver(game, null, null, 'draw');
-      return;
-    }
-    // If bankrupt and no cells to interact with, skip or end
-    if (!canPlace && !canRemove) {
-      broadcastGameOver(game, null, null, 'draw');
-      return;
-    }
-  }
-
-  broadcastState(game);
-}
-
 server.listen(PORT, () => {
-  console.log(`Bid Tac Toe server running on port ${PORT}`);
+  console.log(`Shell Tac Toe server running on port ${PORT}`);
 });

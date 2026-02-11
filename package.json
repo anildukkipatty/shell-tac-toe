@@ -1,7 +1,7 @@
 {
-  "name": "bid-tac-toe",
+  "name": "shell-tac-toe",
   "version": "1.0.0",
-  "description": "Multiplayer Bid Tac Toe game with WebSockets",
+  "description": "Multiplayer Shell Tac Toe game with WebSockets",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
