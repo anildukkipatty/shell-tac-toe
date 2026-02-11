@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Happy Valentine's Day Gautami</title>
+    <title>Bid Tac Toe</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -12,469 +12,979 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #fce4ec, #f8bbd0, #f48fb1);
-            font-family: 'Georgia', serif;
-            overflow: hidden;
+            background: #0f0f1a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e0e0e0;
         }
 
-        /* Floating hearts background */
-        .hearts-bg {
+        .game-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        h1 {
+            font-size: 32px;
+            background: linear-gradient(135deg, #f7971e, #ffd200);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 2px;
+        }
+
+        .subtitle {
+            color: #888;
+            font-size: 14px;
+            margin-top: -12px;
+        }
+
+        /* Scoreboard */
+        .scoreboard {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .player-info {
+            text-align: center;
+            padding: 14px 24px;
+            border-radius: 12px;
+            background: #1a1a2e;
+            border: 2px solid #333;
+            min-width: 140px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .player-info.active {
+            border-color: #ffd200;
+            box-shadow: 0 0 20px rgba(255, 210, 0, 0.15);
+        }
+
+        .player-info .label {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #888;
+            margin-bottom: 4px;
+        }
+
+        .player-info .symbol {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .player-info.x-player .symbol { color: #ff6b6b; }
+        .player-info.o-player .symbol { color: #4ecdc4; }
+
+        .player-info .money {
+            font-size: 22px;
+            font-weight: bold;
+            color: #ffd200;
+        }
+
+        .vs {
+            font-size: 18px;
+            color: #555;
+            font-weight: bold;
+        }
+
+        /* Status + turn actions row */
+        .status-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            min-height: 40px;
+        }
+
+        .status {
+            font-size: 16px;
+            color: #ccc;
+            text-align: center;
+        }
+
+        .status.win { color: #ffd200; font-weight: bold; }
+        .status.lose { color: #ff6b6b; font-weight: bold; }
+
+        /* Turn tracker pills */
+        .turn-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .action-pill {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border: 1px solid #333;
+            background: #1a1a2e;
+            color: #555;
+        }
+
+        .action-pill.available {
+            color: #aaa;
+            border-color: #555;
+        }
+
+        .action-pill.used {
+            color: #ffd200;
+            border-color: #ffd200;
+            background: rgba(255, 210, 0, 0.1);
+        }
+
+        .end-turn-btn {
+            padding: 8px 22px;
+            border: 2px solid #4ecdc4;
+            border-radius: 10px;
+            background: rgba(78, 205, 196, 0.1);
+            color: #4ecdc4;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            display: none;
+        }
+
+        .end-turn-btn.visible {
+            display: inline-block;
+        }
+
+        .end-turn-btn:hover {
+            background: rgba(78, 205, 196, 0.2);
+            box-shadow: 0 0 15px rgba(78, 205, 196, 0.2);
+        }
+
+        /* Board */
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 120px);
+            grid-template-rows: repeat(3, 120px);
+            gap: 6px;
+        }
+
+        .cell {
+            background: #1a1a2e;
+            border: 2px solid #2a2a40;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s, transform 0.15s;
+            position: relative;
+        }
+
+        .cell:hover {
+            background: #22223a;
+            border-color: #ffd200;
+            transform: scale(1.03);
+        }
+
+        .cell .x-mark { color: #ff6b6b; }
+        .cell .o-mark { color: #4ecdc4; }
+
+        .cell .bid-tag {
+            position: absolute;
+            bottom: 6px;
+            right: 8px;
+            font-size: 11px;
+            color: #666;
+            font-weight: normal;
+            display: none;
+        }
+
+        .cell.reveal-bid .bid-tag {
+            display: block;
+        }
+
+        .cell.win-cell {
+            background: rgba(255, 210, 0, 0.1);
+            border-color: #ffd200;
+            box-shadow: 0 0 20px rgba(255, 210, 0, 0.2);
+        }
+
+        .cell.just-placed {
+            border-color: #ffd200;
+            animation: popIn 0.3s ease;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.85); }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
+
+        /* Modal */
+        .modal-backdrop {
             position: fixed;
             top: 0; left: 0;
             width: 100%; height: 100%;
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        .floating-heart {
-            position: absolute;
-            bottom: -50px;
-            font-size: 20px;
-            animation: floatUp linear infinite;
-            opacity: 0.4;
-        }
-
-        @keyframes floatUp {
-            0% { transform: translateY(0) rotate(0deg); opacity: 0.4; }
-            50% { opacity: 0.7; }
-            100% { transform: translateY(-110vh) rotate(360deg); opacity: 0; }
-        }
-
-        /* Card container */
-        .card-scene {
-            perspective: 1200px;
-            z-index: 1;
-        }
-
-        .card {
-            width: 340px;
-            height: 460px;
-            position: relative;
-            cursor: pointer;
-            transform-style: preserve-3d;
-        }
-
-        /* Card cover (front) */
-        .card-cover {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(160deg, #e91e63, #c2185b, #880e4f);
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(136, 14, 79, 0.4);
-            transform-origin: left center;
-            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 2;
+            background: rgba(0, 0, 0, 0.7);
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            backface-visibility: hidden;
-        }
-
-        .card.opened .card-cover {
-            transform: rotateY(-160deg);
-            box-shadow: 0 10px 30px rgba(136, 14, 79, 0.2);
-        }
-
-        .cover-heart {
-            font-size: 80px;
-            animation: pulse 1.2s ease-in-out infinite;
-            filter: drop-shadow(0 4px 20px rgba(255, 255, 255, 0.3));
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.15); }
-        }
-
-        .cover-text {
-            color: #fff;
-            font-size: 18px;
-            margin-top: 20px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            opacity: 0.9;
-        }
-
-        .cover-hint {
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 13px;
-            margin-top: 30px;
-            animation: fadeHint 2s ease-in-out infinite;
-        }
-
-        @keyframes fadeHint {
-            0%, 100% { opacity: 0.4; }
-            50% { opacity: 0.8; }
-        }
-
-        /* Card inside */
-        .card-inside {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(170deg, #fff5f5, #fff0f2, #ffe8ed);
-            border-radius: 16px;
-            box-shadow: inset 0 0 40px rgba(233, 30, 99, 0.08);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 30px 24px;
-            z-index: 1;
-        }
-
-        .inside-hearts {
-            font-size: 30px;
+            z-index: 100;
             opacity: 0;
-            transform: scale(0.3);
-            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s;
+            pointer-events: none;
+            transition: opacity 0.3s;
         }
 
-        .card.opened .inside-hearts {
+        .modal-backdrop.show {
             opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal {
+            background: #1a1a2e;
+            border: 2px solid #333;
+            border-radius: 16px;
+            padding: 28px 32px;
+            text-align: center;
+            min-width: 300px;
+            transform: scale(0.9);
+            transition: transform 0.3s;
+        }
+
+        .modal-backdrop.show .modal {
             transform: scale(1);
         }
 
-        .inside-message {
-            text-align: center;
-            opacity: 0;
-            transform: translateY(30px);
-            transition: all 0.6s ease 0.7s;
-        }
-
-        .card.opened .inside-message {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .inside-message h1 {
-            font-size: 24px;
-            color: #c2185b;
-            line-height: 1.4;
-            margin-bottom: 10px;
-        }
-
-        .inside-message .name {
-            font-size: 38px;
-            color: #e91e63;
-            font-style: italic;
-            display: block;
-            margin-top: 4px;
-            text-shadow: 0 2px 10px rgba(233, 30, 99, 0.2);
-        }
-
-        .inside-message p {
-            color: #ad1457;
-            font-size: 15px;
-            line-height: 1.6;
-            margin-top: 8px;
-            font-style: italic;
-        }
-
-        /* Valentine question & buttons */
-        .valentine-question {
-            margin-top: 18px;
-            text-align: center;
-            opacity: 0;
-            transform: translateY(20px);
-            transition: all 0.5s ease 1s;
-        }
-
-        .card.opened .valentine-question {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .valentine-question h2 {
-            font-size: 17px;
-            color: #c2185b;
-            margin-bottom: 14px;
-        }
-
-        .btn-container {
-            display: flex;
-            gap: 16px;
-            justify-content: center;
-            position: relative;
-            min-height: 44px;
-        }
-
-        .btn-yes, .btn-no {
-            padding: 10px 28px;
-            border: none;
-            border-radius: 30px;
-            font-family: 'Georgia', serif;
-            font-size: 16px;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .btn-yes {
-            background: linear-gradient(135deg, #e91e63, #c2185b);
+        .modal h3 {
+            font-size: 20px;
+            margin-bottom: 8px;
             color: #fff;
-            box-shadow: 0 4px 15px rgba(233, 30, 99, 0.4);
         }
 
-        .btn-yes:hover {
-            transform: scale(1.08);
-            box-shadow: 0 6px 20px rgba(233, 30, 99, 0.5);
+        .modal p {
+            color: #999;
+            font-size: 14px;
+            margin-bottom: 20px;
         }
 
-        .btn-no {
-            background: #f5f5f5;
-            color: #888;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            position: relative;
-            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-
-        .btn-no.escaped {
-            position: absolute;
-        }
-
-        .btn-no:hover {
-            transform: scale(1.05);
-        }
-
-        /* Sparkles on open */
-        .sparkle {
-            position: absolute;
-            width: 6px;
-            height: 6px;
-            background: #e91e63;
-            border-radius: 50%;
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .card.opened .sparkle {
-            animation: sparkle 1s ease-out forwards;
-        }
-
-        @keyframes sparkle {
-            0% { transform: translate(0, 0) scale(0); opacity: 1; }
-            100% { opacity: 0; }
-        }
-
-        /* Confetti overlay */
-        .confetti-overlay {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            pointer-events: none;
-            z-index: 100;
-        }
-
-        .confetti-piece {
-            position: absolute;
-            top: -20px;
-            width: 10px;
-            height: 10px;
-            opacity: 0;
-            animation: confettiFall linear forwards;
-        }
-
-        @keyframes confettiFall {
-            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-            80% { opacity: 1; }
-            100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
-        }
-
-        /* Yay screen */
-        .yay-overlay {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
+        .bid-input-group {
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            z-index: 50;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.5s ease;
+            gap: 8px;
+            margin-bottom: 20px;
         }
 
-        .yay-overlay.show {
-            opacity: 1;
+        .bid-input-group label {
+            color: #999;
+            font-size: 14px;
         }
 
-        .yay-text {
-            font-size: 80px;
-            color: #e91e63;
-            text-shadow: 0 4px 30px rgba(233, 30, 99, 0.4);
-            animation: yayBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-            transform: scale(0);
+        .bid-input-group input {
+            width: 80px;
+            padding: 8px 12px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            background: #0f0f1a;
+            color: #ffd200;
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
         }
 
-        @keyframes yayBounce {
-            0% { transform: scale(0) rotate(-10deg); }
-            100% { transform: scale(1) rotate(0deg); }
+        .bid-input-group input:focus {
+            border-color: #ffd200;
         }
 
-        .yay-hearts {
-            font-size: 50px;
-            margin-top: 16px;
-            animation: yayBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s forwards;
-            transform: scale(0);
+        .confirm-btn {
+            padding: 10px 36px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #f7971e, #ffd200);
+            color: #0f0f1a;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-family: inherit;
         }
 
-        @media (max-width: 400px) {
-            .card { width: 280px; height: 400px; }
-            .cover-heart { font-size: 60px; }
-            .inside-message h1 { font-size: 20px; }
-            .inside-message .name { font-size: 30px; }
-            .yay-text { font-size: 56px; }
+        .confirm-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 20px rgba(255, 210, 0, 0.3);
         }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-80px);
+            background: #1a1a2e;
+            border: 2px solid #333;
+            border-radius: 10px;
+            padding: 12px 24px;
+            font-size: 15px;
+            z-index: 200;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            white-space: nowrap;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .toast.success { border-color: #4ecdc4; color: #4ecdc4; }
+        .toast.fail { border-color: #ff6b6b; color: #ff6b6b; }
+        .toast.info { border-color: #ffd200; color: #ffd200; }
+
+        /* New game button */
+        .new-game-btn {
+            padding: 10px 28px;
+            border: 2px solid #333;
+            border-radius: 10px;
+            background: transparent;
+            color: #888;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .new-game-btn:hover {
+            border-color: #ffd200;
+            color: #ffd200;
+        }
+
+        /* Log */
+        .log {
+            max-height: 120px;
+            overflow-y: auto;
+            width: 378px;
+            background: #12121f;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .log::-webkit-scrollbar { width: 4px; }
+        .log::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+
+        .log .entry-player { color: #ff6b6b; }
+        .log .entry-cpu { color: #4ecdc4; }
+        .log .entry-gold { color: #ffd200; }
+        .log .entry-divider { color: #333; }
+
+        /* Rules tooltip */
+        .rules-btn {
+            padding: 6px 16px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            background: transparent;
+            color: #666;
+            font-size: 12px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .rules-btn:hover { border-color: #888; color: #aaa; }
+
+        .rules-panel {
+            display: none;
+            width: 378px;
+            background: #12121f;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 14px 18px;
+            font-size: 13px;
+            color: #888;
+            line-height: 1.7;
+            text-align: left;
+        }
+
+        .rules-panel.show { display: block; }
+        .rules-panel strong { color: #ffd200; }
     </style>
 </head>
 <body>
-    <div class="hearts-bg" id="heartsBg"></div>
+    <div class="game-wrapper">
+        <h1>BID TAC TOE</h1>
+        <div class="subtitle">Outbid. Outplay. Outwin.</div>
 
-    <div class="card-scene" id="cardScene">
-        <div class="card" id="card">
-            <!-- Cover -->
-            <div class="card-cover" onclick="openCard()">
-                <div class="cover-heart">&#10084;&#65039;</div>
-                <div class="cover-text">Valentine's Day</div>
-                <div class="cover-hint">click to open</div>
+        <div class="scoreboard">
+            <div class="player-info x-player" id="playerX">
+                <div class="label" id="labelX">You</div>
+                <div class="symbol">X</div>
+                <div class="money" id="moneyX">$100</div>
             </div>
-
-            <!-- Inside -->
-            <div class="card-inside">
-                <div class="inside-hearts">&#128149; &#10084;&#65039; &#128149;</div>
-                <div class="inside-message">
-                    <h1>Happy Valentine's Day
-                        <span class="name">Gautami</span>
-                    </h1>
-                    <p>You make every day brighter<br>and every moment sweeter.</p>
-                </div>
-                <div class="valentine-question">
-                    <h2>Will you be my Valentine?</h2>
-                    <div class="btn-container" id="btnContainer">
-                        <button class="btn-yes" onclick="sayYes(event)">Yes!</button>
-                        <button class="btn-no" id="btnNo" onclick="runAway(event)">No</button>
-                    </div>
-                </div>
+            <div class="vs">VS</div>
+            <div class="player-info o-player" id="playerO">
+                <div class="label" id="labelO">CPU</div>
+                <div class="symbol">O</div>
+                <div class="money" id="moneyO">$100</div>
             </div>
+        </div>
 
-            <!-- Sparkles -->
-            <div class="sparkle" style="top:20%;left:60%;animation-delay:0.3s;background:#ff4081;"></div>
-            <div class="sparkle" style="top:30%;left:75%;animation-delay:0.5s;background:#f48fb1;"></div>
-            <div class="sparkle" style="top:50%;left:55%;animation-delay:0.4s;background:#e91e63;"></div>
-            <div class="sparkle" style="top:15%;left:80%;animation-delay:0.6s;background:#ff80ab;"></div>
-            <div class="sparkle" style="top:70%;left:65%;animation-delay:0.7s;background:#f06292;"></div>
-            <div class="sparkle" style="top:40%;left:85%;animation-delay:0.35s;background:#ec407a;"></div>
+        <div class="status-row">
+            <div class="status" id="status">Loading...</div>
+            <div class="turn-actions" id="turnActions">
+                <span class="action-pill" id="pillPlace">Place</span>
+                <span class="action-pill" id="pillRemove">Remove</span>
+            </div>
+            <button class="end-turn-btn" id="endTurnBtn" onclick="endTurn()">End Turn</button>
+        </div>
+
+        <div class="board" id="board"></div>
+
+        <div class="log" id="log"></div>
+
+        <div style="display:flex;gap:12px;">
+            <button class="new-game-btn" onclick="initGame()">New Game</button>
+            <button class="rules-btn" onclick="toggleRules()">Rules</button>
+        </div>
+
+        <div class="rules-panel" id="rulesPanel">
+            Both players start with <strong>$100</strong>. On each turn you get <strong>2 possible actions</strong>:<br>
+            1. <strong>Place</strong> your coin on an empty cell (costs a bid)<br>
+            2. <strong>Remove</strong> opponent's coin (bid more than they paid to succeed)<br>
+            You can do <strong>both, or just one</strong>, then end your turn.<br>
+            If your remove bid is too low, you <strong>lose your money</strong> and their coin stays.<br>
+            Bids are <strong>hidden</strong> — revealed at game end.<br>
+            <strong>Go bankrupt</strong> or get <strong>3 in a row</strong> to decide the winner!
         </div>
     </div>
 
-    <div class="yay-overlay" id="yayOverlay">
-        <div class="yay-text">Yayyy!</div>
-        <div class="yay-hearts">&#128149; &#10084;&#65039; &#128149; &#128152; &#10084;&#65039; &#128149;</div>
+    <!-- Bid Modal -->
+    <div class="modal-backdrop" id="modal">
+        <div class="modal">
+            <h3 id="modalTitle">Place your coin</h3>
+            <p id="modalDesc">How much will you bid?</p>
+            <div class="bid-input-group">
+                <label>Bid: $</label>
+                <input type="number" id="bidInput" min="1" max="100" value="5">
+            </div>
+            <button class="confirm-btn" onclick="confirmBid()">Confirm</button>
+        </div>
     </div>
-    <div class="confetti-overlay" id="confettiOverlay"></div>
+
+    <div class="toast" id="toast"></div>
 
     <script>
-        // Floating hearts background
-        (function createFloatingHearts() {
-            var bg = document.getElementById('heartsBg');
-            var hearts = ['\u2764', '\u2665', '\u2763', '\uD83D\uDC95', '\uD83D\uDC96'];
-            for (var i = 0; i < 20; i++) {
-                var heart = document.createElement('div');
-                heart.className = 'floating-heart';
-                heart.textContent = hearts[Math.floor(Math.random() * hearts.length)];
-                heart.style.left = Math.random() * 100 + '%';
-                heart.style.fontSize = (14 + Math.random() * 18) + 'px';
-                heart.style.animationDuration = (6 + Math.random() * 8) + 's';
-                heart.style.animationDelay = (Math.random() * 10) + 's';
-                bg.appendChild(heart);
+        var board = [];         // 0=empty, 'X', 'O'
+        var bids = [];          // how much was bid on each cell
+        var money = { X: 100, O: 100 };
+        var humanSymbol, cpuSymbol;
+        var currentTurn;        // 'X' or 'O'
+        var gameOver = false;
+
+        // Per-turn tracking: each turn allows 1 place + 1 remove
+        var turnState = { placed: false, removed: false };
+        var selectedCell = -1;
+        var selectedAction = '';  // 'place' or 'remove'
+
+        function initGame() {
+            board = Array(9).fill(0);
+            bids = Array(9).fill(0);
+            money = { X: 100, O: 100 };
+            gameOver = false;
+            turnState = { placed: false, removed: false };
+            document.getElementById('log').innerHTML = '';
+            document.getElementById('rulesPanel').classList.remove('show');
+
+            if (Math.random() < 0.5) {
+                humanSymbol = 'X';
+                cpuSymbol = 'O';
+            } else {
+                humanSymbol = 'O';
+                cpuSymbol = 'X';
             }
-        })();
 
-        // Sparkle burst on open
-        function createSparkles() {
-            var card = document.getElementById('card');
-            for (var i = 0; i < 12; i++) {
-                var s = document.createElement('div');
-                s.className = 'sparkle';
-                s.style.top = (20 + Math.random() * 60) + '%';
-                s.style.left = (50 + Math.random() * 45) + '%';
-                s.style.animationDelay = (0.2 + Math.random() * 0.6) + 's';
-                var colors = ['#e91e63','#ff4081','#f48fb1','#ff80ab','#f06292','#ec407a'];
-                s.style.background = colors[Math.floor(Math.random() * colors.length)];
-                s.style.width = s.style.height = (4 + Math.random() * 6) + 'px';
-                card.appendChild(s);
+            document.getElementById('labelX').textContent = humanSymbol === 'X' ? 'You' : 'CPU';
+            document.getElementById('labelO').textContent = humanSymbol === 'O' ? 'You' : 'CPU';
+
+            currentTurn = 'X';
+            updateUI();
+            addLog('Game started! You are <span class="entry-player">' + humanSymbol + '</span>. ' +
+                (currentTurn === humanSymbol ? 'Your turn!' : 'CPU goes first.'));
+
+            if (currentTurn === cpuSymbol) {
+                setTimeout(cpuTurn, 800);
             }
         }
 
-        var opened = false;
-        function openCard() {
-            var card = document.getElementById('card');
-            if (!opened) {
-                card.classList.add('opened');
-                createSparkles();
-                opened = true;
-            }
-        }
+        function renderBoard() {
+            var boardEl = document.getElementById('board');
+            boardEl.innerHTML = '';
+            for (var i = 0; i < 9; i++) {
+                var cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.dataset.index = i;
+                if (board[i] !== 0) {
+                    var mark = document.createElement('span');
+                    mark.className = board[i] === 'X' ? 'x-mark' : 'o-mark';
+                    mark.textContent = board[i];
+                    cell.appendChild(mark);
 
-        // No button runs away
-        function runAway(e) {
-            e.stopPropagation();
-            var btn = document.getElementById('btnNo');
-            btn.classList.add('escaped');
-
-            var maxX = 120;
-            var maxY = 80;
-            var randX = -maxX + Math.random() * (maxX * 2);
-            var randY = -maxY + Math.random() * (maxY * 2);
-
-            btn.style.left = 'calc(50% + ' + randX + 'px)';
-            btn.style.top = randY + 'px';
-        }
-
-        // Yes button - confetti and yay
-        function sayYes(e) {
-            e.stopPropagation();
-            launchConfetti();
-            document.getElementById('yayOverlay').classList.add('show');
-
-            // Hide the card
-            var scene = document.getElementById('cardScene');
-            scene.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-            scene.style.opacity = '0';
-            scene.style.transform = 'scale(0.8)';
-        }
-
-        function launchConfetti() {
-            var overlay = document.getElementById('confettiOverlay');
-            var colors = ['#e91e63','#ff4081','#f48fb1','#ff80ab','#f06292','#ec407a',
-                          '#ff5252','#ff1744','#d50000','#ff6f00','#ffd600','#ffab00',
-                          '#e040fb','#aa00ff','#6200ea','#304ffe'];
-            var shapes = ['circle', 'rect'];
-
-            for (var i = 0; i < 120; i++) {
-                var piece = document.createElement('div');
-                piece.className = 'confetti-piece';
-                var color = colors[Math.floor(Math.random() * colors.length)];
-                var shape = shapes[Math.floor(Math.random() * shapes.length)];
-
-                piece.style.left = Math.random() * 100 + '%';
-                piece.style.background = color;
-                piece.style.width = (6 + Math.random() * 10) + 'px';
-                piece.style.height = (6 + Math.random() * 10) + 'px';
-                if (shape === 'circle') {
-                    piece.style.borderRadius = '50%';
-                } else {
-                    piece.style.borderRadius = '2px';
+                    var tag = document.createElement('span');
+                    tag.className = 'bid-tag';
+                    tag.textContent = '$' + bids[i];
+                    cell.appendChild(tag);
                 }
-                piece.style.animationDuration = (2 + Math.random() * 3) + 's';
-                piece.style.animationDelay = (Math.random() * 1.5) + 's';
-
-                overlay.appendChild(piece);
+                cell.addEventListener('click', (function(idx) {
+                    return function() { onCellClick(idx); };
+                })(i));
+                boardEl.appendChild(cell);
             }
         }
+
+        function updateUI() {
+            document.getElementById('moneyX').textContent = '$' + money.X;
+            document.getElementById('moneyO').textContent = '$' + money.O;
+
+            document.getElementById('playerX').classList.toggle('active', currentTurn === 'X' && !gameOver);
+            document.getElementById('playerO').classList.toggle('active', currentTurn === 'O' && !gameOver);
+
+            // Turn action pills
+            var pillPlace = document.getElementById('pillPlace');
+            var pillRemove = document.getElementById('pillRemove');
+            var endBtn = document.getElementById('endTurnBtn');
+            var actionsEl = document.getElementById('turnActions');
+
+            if (!gameOver && currentTurn === humanSymbol) {
+                actionsEl.style.display = 'flex';
+                pillPlace.className = 'action-pill ' + (turnState.placed ? 'used' : 'available');
+                pillRemove.className = 'action-pill ' + (turnState.removed ? 'used' : 'available');
+
+                // Show end turn button if at least one action was taken
+                if (turnState.placed || turnState.removed) {
+                    endBtn.classList.add('visible');
+                } else {
+                    endBtn.classList.remove('visible');
+                }
+
+                if (!turnState.placed && !turnState.removed) {
+                    setStatus('Your turn — place, remove, or both');
+                } else if (turnState.placed && !turnState.removed) {
+                    setStatus('You can also remove, or end turn');
+                } else if (!turnState.placed && turnState.removed) {
+                    setStatus('You can also place, or end turn');
+                } else {
+                    setStatus('Both actions used');
+                    // Auto end turn
+                    setTimeout(function() { endTurn(); }, 400);
+                    return;
+                }
+            } else if (!gameOver && currentTurn === cpuSymbol) {
+                actionsEl.style.display = 'none';
+                endBtn.classList.remove('visible');
+                setStatus('CPU is thinking...');
+            } else {
+                actionsEl.style.display = 'none';
+                endBtn.classList.remove('visible');
+            }
+
+            renderBoard();
+        }
+
+        function setStatus(text, cls) {
+            var el = document.getElementById('status');
+            el.textContent = text;
+            el.className = 'status' + (cls ? ' ' + cls : '');
+        }
+
+        // --- Player turn ---
+        function onCellClick(idx) {
+            if (gameOver || currentTurn !== humanSymbol) return;
+            if (money[humanSymbol] < 1) {
+                showToast('You have no money left!', 'fail');
+                return;
+            }
+
+            if (board[idx] === 0) {
+                // Place
+                if (turnState.placed) {
+                    showToast('Already placed this turn!', 'info');
+                    return;
+                }
+                selectedCell = idx;
+                selectedAction = 'place';
+                showModal('Place your coin', 'How much will you bid for cell ' + (idx + 1) + '?');
+            } else if (board[idx] === cpuSymbol) {
+                // Remove attempt
+                if (turnState.removed) {
+                    showToast('Already tried a remove this turn!', 'info');
+                    return;
+                }
+                selectedCell = idx;
+                selectedAction = 'remove';
+                showModal('Remove opponent\'s coin', 'Bid more than CPU\'s hidden bid on cell ' + (idx + 1) + ' to remove it.');
+            } else {
+                showToast('That\'s already your spot!', 'info');
+            }
+        }
+
+        function showModal(title, desc) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalDesc').textContent = desc;
+            var input = document.getElementById('bidInput');
+            input.max = money[humanSymbol];
+            input.value = Math.min(5, money[humanSymbol]);
+            document.getElementById('modal').classList.add('show');
+            input.focus();
+            input.select();
+        }
+
+        function hideModal() {
+            document.getElementById('modal').classList.remove('show');
+        }
+
+        function confirmBid() {
+            var input = document.getElementById('bidInput');
+            var bid = parseInt(input.value);
+
+            if (isNaN(bid) || bid < 1) {
+                showToast('Minimum bid is $1!', 'fail');
+                return;
+            }
+            if (bid > money[humanSymbol]) {
+                showToast('You don\'t have enough money!', 'fail');
+                return;
+            }
+
+            hideModal();
+
+            if (selectedAction === 'place' && board[selectedCell] === 0) {
+                board[selectedCell] = humanSymbol;
+                bids[selectedCell] = bid;
+                money[humanSymbol] -= bid;
+                turnState.placed = true;
+                addLog('You placed <span class="entry-player">' + humanSymbol + '</span> on cell ' + (selectedCell + 1) + ' for <span class="entry-gold">$' + bid + '</span>');
+            } else if (selectedAction === 'remove' && board[selectedCell] === cpuSymbol) {
+                var opponentBid = bids[selectedCell];
+                money[humanSymbol] -= bid;
+                turnState.removed = true;
+                if (bid > opponentBid) {
+                    board[selectedCell] = 0;
+                    bids[selectedCell] = 0;
+                    addLog('You removed CPU\'s coin from cell ' + (selectedCell + 1) + ' (<span class="entry-gold">$' + bid + '</span> vs <span class="entry-gold">$' + opponentBid + '</span>)');
+                    showToast('Removed! CPU had bid $' + opponentBid, 'success');
+                } else {
+                    addLog('Remove failed on cell ' + (selectedCell + 1) + ' (<span class="entry-gold">$' + bid + '</span> vs <span class="entry-gold">$' + opponentBid + '</span>). Lost <span class="entry-gold">$' + bid + '</span>!');
+                    showToast('Failed! CPU had bid $' + opponentBid, 'fail');
+                }
+            }
+
+            // Check win/bankrupt after each action
+            if (checkGameEnd()) return;
+
+            updateUI();
+
+            // Auto end if no money or both actions used
+            if (money[humanSymbol] < 1) {
+                setTimeout(function() { endTurn(); }, 500);
+            }
+        }
+
+        function endTurn() {
+            if (gameOver || currentTurn !== humanSymbol) return;
+            if (!turnState.placed && !turnState.removed) return; // must do at least 1 action
+
+            addLog('<span class="entry-divider">--- end of your turn ---</span>');
+            turnState = { placed: false, removed: false };
+            currentTurn = currentTurn === 'X' ? 'O' : 'X';
+            updateUI();
+
+            if (currentTurn === cpuSymbol) {
+                setTimeout(cpuTurn, 700);
+            }
+        }
+
+        // --- CPU turn ---
+        function cpuTurn() {
+            if (gameOver) return;
+
+            var cpuMoney = money[cpuSymbol];
+            var didPlace = false;
+            var didRemove = false;
+
+            // Decide what to do this turn. CPU can do place + remove, or just one.
+            var placeMove = decideCPUPlace();
+            var removeMove = decideCPURemove();
+
+            // Priority: if can win by placing, do that first
+            if (placeMove && placeMove.priority === 'win') {
+                executeCPUPlace(placeMove);
+                didPlace = true;
+                if (checkGameEnd()) return;
+                // Still try remove if money left
+                if (money[cpuSymbol] >= 1 && removeMove) {
+                    removeMove = decideCPURemove(); // recalc after board change
+                    if (removeMove) {
+                        executeCPURemove(removeMove);
+                        didRemove = true;
+                        if (checkGameEnd()) return;
+                    }
+                }
+            }
+            // If human is about to win, block first, then maybe remove a threat
+            else if (placeMove && placeMove.priority === 'block') {
+                executeCPUPlace(placeMove);
+                didPlace = true;
+                if (checkGameEnd()) return;
+                if (money[cpuSymbol] >= 1 && removeMove) {
+                    removeMove = decideCPURemove();
+                    if (removeMove) {
+                        executeCPURemove(removeMove);
+                        didRemove = true;
+                        if (checkGameEnd()) return;
+                    }
+                }
+            }
+            // Otherwise: try remove first if strategic, then place
+            else {
+                if (removeMove && removeMove.priority === 'threat' && money[cpuSymbol] >= 1) {
+                    executeCPURemove(removeMove);
+                    didRemove = true;
+                    if (checkGameEnd()) return;
+                }
+                if (!didPlace && money[cpuSymbol] >= 1) {
+                    placeMove = decideCPUPlace(); // recalc
+                    if (placeMove) {
+                        executeCPUPlace(placeMove);
+                        didPlace = true;
+                        if (checkGameEnd()) return;
+                    }
+                }
+                if (!didRemove && money[cpuSymbol] >= 1) {
+                    removeMove = decideCPURemove();
+                    if (removeMove && removeMove.priority === 'opportunistic') {
+                        executeCPURemove(removeMove);
+                        didRemove = true;
+                        if (checkGameEnd()) return;
+                    }
+                }
+            }
+
+            if (!didPlace && !didRemove) {
+                addLog('CPU has no moves.');
+            }
+
+            addLog('<span class="entry-divider">--- end of CPU turn ---</span>');
+            turnState = { placed: false, removed: false };
+            currentTurn = currentTurn === 'X' ? 'O' : 'X';
+            updateUI();
+        }
+
+        function decideCPUPlace() {
+            var cpuMoney = money[cpuSymbol];
+            if (cpuMoney < 1) return null;
+
+            // Win?
+            var winCell = findWinningCell(cpuSymbol);
+            if (winCell !== -1 && board[winCell] === 0) {
+                var bid = Math.min(Math.max(3, Math.floor(cpuMoney * 0.2)), cpuMoney);
+                return { cell: winCell, bid: bid, priority: 'win' };
+            }
+
+            // Block?
+            var threatCell = findWinningCell(humanSymbol);
+            if (threatCell !== -1 && board[threatCell] === 0) {
+                var bid = Math.min(Math.max(5, Math.floor(cpuMoney * 0.25)), cpuMoney);
+                return { cell: threatCell, bid: bid, priority: 'block' };
+            }
+
+            // Strategic
+            var emptyCells = [];
+            for (var i = 0; i < 9; i++) {
+                if (board[i] === 0) emptyCells.push(i);
+            }
+            if (emptyCells.length === 0) return null;
+
+            var priority = [4, 0, 2, 6, 8, 1, 3, 5, 7];
+            var chosen = -1;
+            for (var p = 0; p < priority.length; p++) {
+                if (board[priority[p]] === 0) { chosen = priority[p]; break; }
+            }
+            if (chosen === -1) chosen = emptyCells[0];
+
+            var baseBid = Math.floor(cpuMoney * (0.05 + Math.random() * 0.1));
+            var bid = Math.max(1, Math.min(baseBid, cpuMoney));
+            return { cell: chosen, bid: bid, priority: 'normal' };
+        }
+
+        function decideCPURemove() {
+            var cpuMoney = money[cpuSymbol];
+            if (cpuMoney < 1) return null;
+
+            var humanCells = [];
+            for (var i = 0; i < 9; i++) {
+                if (board[i] === humanSymbol) {
+                    humanCells.push({ cell: i, bid: bids[i] });
+                }
+            }
+            if (humanCells.length === 0) return null;
+
+            // Is human threatening to win? Remove a key piece
+            var threatCell = findWinningCell(humanSymbol);
+            if (threatCell !== -1 && board[threatCell] === humanSymbol) {
+                var target = { cell: threatCell, bid: bids[threatCell] };
+                var removeBid = Math.min(target.bid + Math.floor(Math.random() * 5) + 2, cpuMoney);
+                return { cell: target.cell, bid: removeBid, priority: 'threat' };
+            }
+
+            // Opportunistic: remove cheapest piece if affordable
+            humanCells.sort(function(a, b) { return a.bid - b.bid; });
+            var cheapest = humanCells[0];
+            if (cheapest.bid < cpuMoney * 0.3) {
+                var removeBid = Math.min(cheapest.bid + Math.floor(Math.random() * 4) + 1, cpuMoney);
+                return { cell: cheapest.cell, bid: removeBid, priority: 'opportunistic' };
+            }
+
+            return null;
+        }
+
+        function executeCPUPlace(move) {
+            board[move.cell] = cpuSymbol;
+            bids[move.cell] = move.bid;
+            money[cpuSymbol] -= move.bid;
+            addLog('CPU placed <span class="entry-cpu">' + cpuSymbol + '</span> on cell ' + (move.cell + 1));
+        }
+
+        function executeCPURemove(move) {
+            var target = move.cell;
+            var opponentBid = bids[target];
+            money[cpuSymbol] -= move.bid;
+            if (move.bid > opponentBid) {
+                board[target] = 0;
+                bids[target] = 0;
+                addLog('CPU removed your coin from cell ' + (target + 1) + ' (<span class="entry-gold">$' + move.bid + '</span> vs <span class="entry-gold">$' + opponentBid + '</span>)');
+                showToast('CPU removed your coin from cell ' + (target + 1) + '!', 'fail');
+            } else {
+                addLog('CPU failed to remove cell ' + (target + 1) + ' (<span class="entry-gold">$' + move.bid + '</span> vs <span class="entry-gold">$' + opponentBid + '</span>)');
+                showToast('CPU failed to remove your coin!', 'success');
+            }
+        }
+
+        // --- Win / game end ---
+        function findWinningCell(sym) {
+            var lines = [
+                [0,1,2],[3,4,5],[6,7,8],
+                [0,3,6],[1,4,7],[2,5,8],
+                [0,4,8],[2,4,6]
+            ];
+            for (var l = 0; l < lines.length; l++) {
+                var a = lines[l][0], b = lines[l][1], c = lines[l][2];
+                var cells = [board[a], board[b], board[c]];
+                var symCount = cells.filter(function(x) { return x === sym; }).length;
+                var emptyCount = cells.filter(function(x) { return x === 0; }).length;
+                if (symCount === 2 && emptyCount === 1) {
+                    if (board[a] === 0) return a;
+                    if (board[b] === 0) return b;
+                    if (board[c] === 0) return c;
+                }
+            }
+            return -1;
+        }
+
+        function checkWin() {
+            var lines = [
+                [0,1,2],[3,4,5],[6,7,8],
+                [0,3,6],[1,4,7],[2,5,8],
+                [0,4,8],[2,4,6]
+            ];
+            for (var l = 0; l < lines.length; l++) {
+                var a = lines[l][0], b = lines[l][1], c = lines[l][2];
+                if (board[a] !== 0 && board[a] === board[b] && board[b] === board[c]) {
+                    return { winner: board[a], cells: [a, b, c] };
+                }
+            }
+            return null;
+        }
+
+        function checkGameEnd() {
+            var win = checkWin();
+            if (win) {
+                endGame(win);
+                return true;
+            }
+            // Bankruptcy: both players out of money and board full
+            if (money.X <= 0 && money.O <= 0 && board.every(function(c) { return c !== 0; })) {
+                endGame(null);
+                return true;
+            }
+            // One player bankrupt and can't do anything useful
+            if (money[humanSymbol] <= 0 && money[cpuSymbol] > 0 && board.every(function(c) { return c !== 0; })) {
+                // Human can't remove anything, CPU might still win
+            }
+            return false;
+        }
+
+        function endGame(result) {
+            gameOver = true;
+
+            // Reveal all bids
+            setTimeout(function() {
+                var cells = document.querySelectorAll('.cell');
+                cells.forEach(function(c) { c.classList.add('reveal-bid'); });
+            }, 300);
+
+            if (result === null) {
+                setStatus('It\'s a draw!', '');
+                addLog('Game over — draw!');
+            } else {
+                result.cells.forEach(function(idx) {
+                    var cellEls = document.querySelectorAll('.cell');
+                    cellEls[idx].classList.add('win-cell');
+                });
+                if (result.winner === humanSymbol) {
+                    setStatus('You win! Three in a row!', 'win');
+                    addLog('<span class="entry-player">You win!</span> Three in a row!');
+                } else {
+                    setStatus('CPU wins! Three in a row.', 'lose');
+                    addLog('<span class="entry-cpu">CPU wins.</span> Three in a row.');
+                }
+            }
+
+            updateUI();
+        }
+
+        // --- Helpers ---
+        function showToast(msg, type) {
+            var toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = 'toast ' + type + ' show';
+            clearTimeout(toast._timeout);
+            toast._timeout = setTimeout(function() {
+                toast.classList.remove('show');
+            }, 2500);
+        }
+
+        function addLog(html) {
+            var el = document.getElementById('log');
+            el.innerHTML += '<div>' + html + '</div>';
+            el.scrollTop = el.scrollHeight;
+        }
+
+        function toggleRules() {
+            document.getElementById('rulesPanel').classList.toggle('show');
+        }
+
+        // Modal events
+        document.getElementById('modal').addEventListener('click', function(e) {
+            if (e.target === this) hideModal();
+        });
+        document.getElementById('bidInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') confirmBid();
+        });
+
+        initGame();
     </script>
 </body>
 </html>
