@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shell Tac Toe</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0f0f1a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e0e0e0;
+        }
+
+        .game-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        h1 {
+            font-size: 32px;
+            background: linear-gradient(135deg, #f7971e, #ffd200);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 2px;
+        }
+
+        .subtitle {
+            color: #888;
+            font-size: 14px;
+            margin-top: -12px;
+        }
+
+        /* Lobby */
+        .lobby {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            padding: 32px;
+            background: #1a1a2e;
+            border: 2px solid #333;
+            border-radius: 16px;
+            min-width: 360px;
+        }
+
+        .lobby input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            background: #0f0f1a;
+            color: #e0e0e0;
+            font-size: 16px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .lobby input:focus { border-color: #ffd200; }
+
+        .lobby-row {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .lobby-btn {
+            flex: 1;
+            padding: 12px 20px;
+            border: 2px solid #333;
+            border-radius: 10px;
+            background: transparent;
+            color: #e0e0e0;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .lobby-btn:hover { border-color: #ffd200; color: #ffd200; }
+
+        .lobby-btn.primary {
+            background: linear-gradient(135deg, #f7971e, #ffd200);
+            color: #0f0f1a;
+            border-color: transparent;
+        }
+
+        .lobby-btn.primary:hover {
+            transform: scale(1.03);
+            box-shadow: 0 4px 20px rgba(255, 210, 0, 0.3);
+        }
+
+        .lobby-btn.primary.loading {
+            opacity: 0.6;
+            cursor: not-allowed;
+            pointer-events: none;
+            transform: none;
+            box-shadow: none;
+            animation: btnPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes btnPulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.7; }
+        }
+
+        .game-id-display {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 16px;
+            background: #12121f;
+            border-radius: 10px;
+            width: 100%;
+        }
+
+        .game-id-display .code {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ffd200;
+            letter-spacing: 4px;
+            cursor: pointer;
+        }
+
+        .game-id-display .hint { font-size: 13px; color: #666; }
+        .game-id-display .hint.clickable { cursor: pointer; }
+        .game-id-display .hint.clickable:hover { color: #999; }
+
+        .waiting-msg {
+            display: none;
+            color: #888;
+            font-size: 14px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .join-section {
+            display: none;
+            width: 100%;
+            gap: 10px;
+            flex-direction: column;
+        }
+
+        .lobby-error {
+            color: #ff6b6b;
+            font-size: 13px;
+            display: none;
+        }
+
+        /* Scoreboard */
+        .game-screen { display: none; }
+
+        .scoreboard {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .player-info {
+            text-align: center;
+            padding: 14px 24px;
+            border-radius: 12px;
+            background: #1a1a2e;
+            border: 2px solid #333;
+            min-width: 140px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .player-info.active {
+            border-color: #ffd200;
+            box-shadow: 0 0 20px rgba(255, 210, 0, 0.15);
+        }
+
+        .player-info .label {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #888;
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 120px;
+        }
+
+        .player-info .symbol {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .player-info.x-player .symbol { color: #ff6b6b; }
+        .player-info.o-player .symbol { color: #4ecdc4; }
+
+        .shell-count {
+            font-size: 16px;
+            font-weight: bold;
+            color: #ffd200;
+        }
+
+        .vs {
+            font-size: 18px;
+            color: #555;
+            font-weight: bold;
+        }
+
+        /* Status row */
+        .status-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            min-height: 40px;
+        }
+
+        .status {
+            font-size: 16px;
+            color: #ccc;
+            text-align: center;
+        }
+
+        .status.win { color: #ffd200; font-weight: bold; }
+        .status.lose { color: #ff6b6b; font-weight: bold; }
+
+        /* Action mode */
+        .action-mode {
+            display: none;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .mode-label {
+            font-size: 13px;
+            color: #ffd200;
+            font-weight: bold;
+        }
+
+        .cancel-mode-btn {
+            padding: 4px 12px;
+            border: 1px solid #ff6b6b;
+            border-radius: 8px;
+            background: rgba(255, 107, 107, 0.1);
+            color: #ff6b6b;
+            font-size: 12px;
+            cursor: pointer;
+            font-family: inherit;
+            display: none;
+        }
+
+        .cancel-mode-btn:hover {
+            background: rgba(255, 107, 107, 0.2);
+        }
+
+        /* Board */
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 120px);
+            grid-template-rows: repeat(3, 120px);
+            gap: 6px;
+        }
+
+        .cell {
+            background: #1a1a2e;
+            border: 2px solid #2a2a40;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s, transform 0.15s;
+            position: relative;
+        }
+
+        .cell:hover {
+            background: #22223a;
+            border-color: #ffd200;
+            transform: scale(1.03);
+        }
+
+        .cell .x-mark { color: #ff6b6b; }
+        .cell .o-mark { color: #4ecdc4; }
+
+        .cell.win-cell {
+            background: rgba(255, 210, 0, 0.1);
+            border-color: #ffd200;
+            box-shadow: 0 0 20px rgba(255, 210, 0, 0.2);
+        }
+
+        .cell.has-mine::after {
+            content: '';
+            position: absolute;
+            bottom: 6px;
+            left: 6px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff6b6b;
+            opacity: 0.6;
+        }
+
+        .cell.revealed-mine::after {
+            content: '!';
+            position: absolute;
+            bottom: 2px;
+            left: 8px;
+            font-size: 11px;
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.85); }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
+
+        /* Shell inventory */
+        .shell-inventory {
+            display: none;
+            width: 378px;
+            background: #12121f;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 10px 14px;
+            min-height: 48px;
+        }
+
+        .inventory-label {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+
+        .shell-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .shell-pill {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            border: 2px solid #333;
+            background: #1a1a2e;
+            transition: all 0.2s;
+            user-select: none;
+            font-family: inherit;
+        }
+
+        .shell-pill:hover:not(:disabled) {
+            border-color: #ffd200;
+            transform: scale(1.05);
+        }
+
+        .shell-pill.selected {
+            border-color: #ffd200;
+            background: rgba(255, 210, 0, 0.15);
+            box-shadow: 0 0 10px rgba(255, 210, 0, 0.2);
+        }
+
+        .shell-pill.mine-shell    { color: #ff6b6b; }
+        .shell-pill.shovel-shell  { color: #4ecdc4; }
+        .shell-pill.flip-shell { color: #ffd200; }
+
+        .shell-pill:disabled {
+            opacity: 0.4;
+            cursor: default;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-80px);
+            background: #1a1a2e;
+            border: 2px solid #333;
+            border-radius: 10px;
+            padding: 12px 24px;
+            font-size: 15px;
+            z-index: 200;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            white-space: nowrap;
+        }
+
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.success { border-color: #4ecdc4; color: #4ecdc4; }
+        .toast.fail { border-color: #ff6b6b; color: #ff6b6b; }
+        .toast.info { border-color: #ffd200; color: #ffd200; }
+
+        /* Log */
+        .log {
+            max-height: 120px;
+            overflow-y: auto;
+            width: 378px;
+            background: #12121f;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .log::-webkit-scrollbar { width: 4px; }
+        .log::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+
+        .log .entry-x { color: #ff6b6b; }
+        .log .entry-o { color: #4ecdc4; }
+        .log .entry-gold { color: #ffd200; }
+        .log .entry-divider { color: #333; }
+
+        /* Rules / buttons */
+        .rules-btn {
+            padding: 6px 16px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            background: transparent;
+            color: #666;
+            font-size: 12px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .rules-btn:hover { border-color: #888; color: #aaa; }
+
+        .rules-panel {
+            display: none;
+            width: 378px;
+            background: #12121f;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 14px 18px;
+            font-size: 13px;
+            color: #888;
+            line-height: 1.7;
+            text-align: left;
+        }
+
+        .rules-panel.show { display: block; }
+        .rules-panel strong { color: #ffd200; }
+
+        .back-btn {
+            padding: 8px 20px;
+            border: 2px solid #333;
+            border-radius: 10px;
+            background: transparent;
+            color: #888;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .back-btn:hover { border-color: #ffd200; color: #ffd200; }
+
+        .rematch-btn {
+            padding: 8px 20px;
+            font-size: 14px;
+        }
+
+        .rematch-btn.waiting {
+            opacity: 0.6;
+            cursor: not-allowed;
+            pointer-events: none;
+            animation: btnPulse 1.5s ease-in-out infinite;
+        }
+
+        .disconnected-banner {
+            display: none;
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid #ff6b6b;
+            border-radius: 8px;
+            padding: 8px 16px;
+            color: #ff6b6b;
+            font-size: 14px;
+        }
+
+        /* New shell earned animation */
+        @keyframes shellEarned {
+            0% { transform: scale(0.5); opacity: 0; }
+            60% { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .shell-pill.just-earned {
+            animation: shellEarned 0.4s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-wrapper">
+        <h1>SHELL TAC TOE</h1>
+        <div class="subtitle">Place. Power Up. Prevail.</div>
+
+        <!-- Lobby Screen -->
+        <div class="lobby" id="lobby">
+            <input type="text" id="usernameInput" placeholder="Enter your name" maxlength="20">
+            <div class="lobby-row">
+                <button class="lobby-btn primary" id="createBtn" onclick="createGame()">Create Game</button>
+                <button class="lobby-btn" onclick="showJoinSection()">Join Game</button>
+            </div>
+            <div class="game-id-display" id="gameIdDisplay">
+                <div class="hint">Share this code with your opponent:</div>
+                <div class="code" id="gameCode" onclick="copyGameCode()"></div>
+                <div class="hint clickable" onclick="copyGameCode()">Click to copy</div>
+            </div>
+            <div class="waiting-msg" id="waitingMsg">Waiting for opponent to join...</div>
+            <div class="join-section" id="joinSection">
+                <input type="text" id="gameIdInput" placeholder="Enter game code" maxlength="6" style="text-transform:uppercase;text-align:center;letter-spacing:4px;font-size:20px;">
+                <button class="lobby-btn primary" onclick="joinGame()">Join</button>
+            </div>
+            <div class="lobby-error" id="lobbyError"></div>
+        </div>
+
+        <!-- Game Screen -->
+        <div class="game-screen" id="gameScreen">
+            <div class="disconnected-banner" id="disconnectedBanner">Opponent disconnected</div>
+
+            <div class="scoreboard">
+                <div class="player-info x-player" id="playerX">
+                    <div class="label" id="labelX">X</div>
+                    <div class="symbol">X</div>
+                    <div class="shell-count" id="shellCountX">Shells: 0</div>
+                </div>
+                <div class="vs">VS</div>
+                <div class="player-info o-player" id="playerO">
+                    <div class="label" id="labelO">O</div>
+                    <div class="symbol">O</div>
+                    <div class="shell-count" id="shellCountO">Shells: 0</div>
+                </div>
+            </div>
+
+            <div class="status-row">
+                <div class="status" id="status">Waiting...</div>
+                <div class="action-mode" id="actionMode">
+                    <span class="mode-label" id="modeLabel"></span>
+                    <button class="cancel-mode-btn" id="cancelModeBtn" onclick="cancelShellMode()">Cancel</button>
+                </div>
+            </div>
+
+            <div class="board" id="board"></div>
+
+            <div class="shell-inventory" id="shellInventory">
+                <div class="inventory-label">Your Shells:</div>
+                <div class="shell-list" id="shellList"></div>
+            </div>
+
+            <div class="log" id="log"></div>
+
+            <div style="display:flex;gap:12px;">
+                <button class="lobby-btn primary rematch-btn" id="rematchBtn" onclick="requestRematch()" style="display:none;">Rematch</button>
+                <button class="back-btn" onclick="backToLobby()">Leave</button>
+                <button class="rules-btn" onclick="toggleRules()">Rules</button>
+            </div>
+
+            <div class="rules-panel" id="rulesPanel">
+                Standard <strong>Tic-Tac-Toe</strong> &mdash; get 3 in a row to win!<br><br>
+                On your turn, do <strong>one</strong> of:<br>
+                1. <strong>Place</strong> your coin on an empty cell (earns 1 random shell)<br>
+                2. <strong>Use a shell</strong> from your inventory<br><br>
+                <strong>Shell powers:</strong><br>
+                <strong style="color:#ff6b6b;">Mine</strong> &mdash; Place on empty cell (invisible to opponent). If they step on it, ALL their coins vanish!<br>
+                <strong style="color:#4ecdc4;">Shovel</strong> &mdash; Remove one of opponent's coins.<br>
+                <strong style="color:#ffd200;">Flip</strong> &mdash; Convert one of opponent's coins to yours.<br><br>
+                Opponent can see your <strong>shell count</strong> but not the types.
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // --- State ---
+        var ws = null;
+        var mySymbol = null;
+        var gameState = null;
+        var isGameOver = false;
+        var opponentName = '';
+        var myUsername = '';
+
+        // Action mode
+        var actionMode = 'place'; // 'place' | 'mine' | 'shovel' | 'flip'
+        var selectedShellIndex = -1;
+
+        var SHELL_LABELS = { mine: 'Mine', shovel: 'Shovel', flip: 'Flip' };
+        var SHELL_ICONS = { mine: '\uD83D\uDCA3', shovel: '\u26CF\uFE0F', flip: '\uD83D\uDD04' };
+
+        // --- localStorage persistence ---
+        function getUserId() {
+            var id = localStorage.getItem('stt_userId');
+            if (!id) {
+                id = 'u_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+                localStorage.setItem('stt_userId', id);
+            }
+            return id;
+        }
+
+        function saveSession(gameId, username) {
+            localStorage.setItem('stt_gameId', gameId);
+            localStorage.setItem('stt_username', username);
+        }
+
+        function clearSession() {
+            localStorage.removeItem('stt_gameId');
+            localStorage.removeItem('stt_username');
+        }
+
+        function getSavedSession() {
+            var gameId = localStorage.getItem('stt_gameId');
+            var username = localStorage.getItem('stt_username');
+            if (gameId) return { gameId: gameId, username: username || 'Player' };
+            return null;
+        }
+
+        // --- WebSocket ---
+        function connectWS(onOpen) {
+            var protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(protocol + '//' + location.host);
+            ws.onmessage = function(e) { handleMessage(JSON.parse(e.data)); };
+            ws.onclose = function() {
+                if (!isGameOver) showToast('Connection lost', 'fail');
+            };
+            if (onOpen) ws.onopen = onOpen;
+        }
+
+        function sendMsg(obj) {
+            if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj));
+        }
+
+        function handleMessage(msg) {
+            switch (msg.type) {
+                case 'created':
+                    mySymbol = msg.symbol;
+                    document.getElementById('gameCode').textContent = msg.gameId;
+                    document.getElementById('gameIdDisplay').style.display = 'flex';
+                    document.getElementById('waitingMsg').style.display = 'block';
+                    document.getElementById('joinSection').style.display = 'none';
+                    saveSession(msg.gameId, document.getElementById('usernameInput').value.trim() || 'Player');
+                    break;
+
+                case 'started':
+                    mySymbol = msg.symbol;
+                    opponentName = msg.opponentName;
+                    myUsername = msg.yourUsername;
+                    saveSession(msg.gameId, myUsername);
+                    showGameScreen();
+                    addLog('Game started! You are <span class="entry-' + mySymbol.toLowerCase() + '">' + mySymbol + '</span>. ' +
+                        (msg.firstTurn === mySymbol ? 'Your turn!' : opponentName + ' goes first.'));
+                    break;
+
+                case 'gameState':
+                    gameState = msg;
+                    updateUI();
+                    break;
+
+                case 'actionResult':
+                    handleActionResult(msg);
+                    break;
+
+                case 'gameOver':
+                    handleGameOver(msg);
+                    break;
+
+                case 'error':
+                    showToast(msg.message, 'fail');
+                    document.getElementById('lobbyError').textContent = msg.message;
+                    document.getElementById('lobbyError').style.display = 'block';
+                    setCreateBtnLoading(false);
+                    break;
+
+                case 'opponentDisconnected':
+                    document.getElementById('disconnectedBanner').style.display = 'block';
+                    showToast('Opponent disconnected', 'fail');
+                    break;
+
+                case 'opponentReconnected':
+                    document.getElementById('disconnectedBanner').style.display = 'none';
+                    showToast('Opponent reconnected!', 'success');
+                    break;
+
+                case 'reconnected':
+                    mySymbol = msg.symbol;
+                    myUsername = msg.yourUsername;
+                    opponentName = msg.opponentName || '';
+                    if (msg.gameStarted) {
+                        showGameScreen();
+                        addLog('Reconnected to game as <span class="entry-' + mySymbol.toLowerCase() + '">' + mySymbol + '</span>.');
+                        showToast('Reconnected!', 'success');
+                    } else {
+                        // Game hasn't started yet — go back to lobby waiting state
+                        document.getElementById('gameCode').textContent = msg.gameId;
+                        document.getElementById('gameIdDisplay').style.display = 'flex';
+                        document.getElementById('waitingMsg').style.display = 'block';
+                        document.getElementById('joinSection').style.display = 'none';
+                        showToast('Reconnected — waiting for opponent', 'info');
+                    }
+                    break;
+
+                case 'reconnectFailed':
+                    clearSession();
+                    showToast('Could not rejoin game', 'fail');
+                    break;
+
+                case 'kicked':
+                    clearSession();
+                    isGameOver = true;
+                    showToast('Connected from another tab', 'info');
+                    break;
+
+                case 'opponentWantsRestart':
+                    showToast('Opponent wants a rematch!', 'info');
+                    break;
+
+                case 'restarted':
+                    mySymbol = msg.symbol;
+                    opponentName = msg.opponentName;
+                    myUsername = msg.yourUsername;
+                    isGameOver = false;
+                    resetActionMode();
+                    document.getElementById('rematchBtn').style.display = 'none';
+                    document.getElementById('rematchBtn').classList.remove('waiting');
+                    document.getElementById('rematchBtn').textContent = 'Rematch';
+                    document.getElementById('disconnectedBanner').style.display = 'none';
+                    document.getElementById('shellInventory').style.display = 'block';
+                    document.getElementById('log').innerHTML = '';
+                    saveSession(msg.gameId, myUsername);
+                    addLog('Rematch! You are <span class="entry-' + mySymbol.toLowerCase() + '">' + mySymbol + '</span>. ' +
+                        (msg.firstTurn === mySymbol ? 'Your turn!' : opponentName + ' goes first.'));
+                    showToast('Rematch started!', 'success');
+                    break;
+            }
+        }
+
+        // --- Lobby ---
+        function setCreateBtnLoading(loading) {
+            var btn = document.getElementById('createBtn');
+            if (loading) {
+                btn.textContent = 'Creating...';
+                btn.classList.add('loading');
+            } else {
+                btn.textContent = 'Create Game';
+                btn.classList.remove('loading');
+            }
+        }
+
+        function createGame() {
+            var username = document.getElementById('usernameInput').value.trim() || 'Player';
+            document.getElementById('lobbyError').style.display = 'none';
+            setCreateBtnLoading(true);
+            connectWS(function() {
+                sendMsg({ type: 'create', username: username, userId: getUserId() });
+            });
+            ws.onerror = function() { setCreateBtnLoading(false); };
+            var origOnClose = ws.onclose;
+            ws.onclose = function() {
+                setCreateBtnLoading(false);
+                if (origOnClose) origOnClose();
+            };
+        }
+
+        function showJoinSection() {
+            document.getElementById('joinSection').style.display = 'flex';
+            document.getElementById('gameIdDisplay').style.display = 'none';
+            document.getElementById('waitingMsg').style.display = 'none';
+            document.getElementById('lobbyError').style.display = 'none';
+            document.getElementById('gameIdInput').focus();
+        }
+
+        function joinGame() {
+            var username = document.getElementById('usernameInput').value.trim() || 'Player';
+            var gameId = document.getElementById('gameIdInput').value.trim().toUpperCase();
+            if (!gameId) {
+                document.getElementById('lobbyError').textContent = 'Enter a game code';
+                document.getElementById('lobbyError').style.display = 'block';
+                return;
+            }
+            document.getElementById('lobbyError').style.display = 'none';
+            connectWS(function() {
+                sendMsg({ type: 'join', gameId: gameId, username: username, userId: getUserId() });
+            });
+        }
+
+        function copyGameCode() {
+            var code = document.getElementById('gameCode').textContent;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(code).then(function() {
+                    showToast('Code copied!', 'success');
+                }, function() {
+                    fallbackCopy(code);
+                });
+            } else {
+                fallbackCopy(code);
+            }
+        }
+
+        function fallbackCopy(text) {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try {
+                document.execCommand('copy');
+                showToast('Code copied!', 'success');
+            } catch (e) {
+                showToast('Copy failed — select manually', 'fail');
+            }
+            document.body.removeChild(ta);
+        }
+
+        function showGameScreen() {
+            document.getElementById('lobby').style.display = 'none';
+            var gs = document.getElementById('gameScreen');
+            gs.style.display = 'flex';
+            gs.style.flexDirection = 'column';
+            gs.style.alignItems = 'center';
+            gs.style.gap = '20px';
+        }
+
+        function backToLobby() {
+            clearSession();
+            if (ws) { ws.close(); ws = null; }
+            mySymbol = null;
+            gameState = null;
+            isGameOver = false;
+            resetActionMode();
+            document.getElementById('lobby').style.display = 'flex';
+            document.getElementById('gameScreen').style.display = 'none';
+            document.getElementById('gameIdDisplay').style.display = 'none';
+            document.getElementById('waitingMsg').style.display = 'none';
+            document.getElementById('joinSection').style.display = 'none';
+            document.getElementById('lobbyError').style.display = 'none';
+            document.getElementById('disconnectedBanner').style.display = 'none';
+            document.getElementById('shellInventory').style.display = 'none';
+            document.getElementById('rematchBtn').style.display = 'none';
+            document.getElementById('rematchBtn').classList.remove('waiting');
+            document.getElementById('rematchBtn').textContent = 'Rematch';
+            document.getElementById('log').innerHTML = '';
+        }
+
+        // --- Game UI ---
+        function updateUI() {
+            if (!gameState) return;
+
+            var xName = gameState.players.X || 'X';
+            var oName = gameState.players.O || 'O';
+            var oppSymbol = mySymbol === 'X' ? 'O' : 'X';
+
+            document.getElementById('labelX').textContent = xName + (mySymbol === 'X' ? ' (You)' : '');
+            document.getElementById('labelO').textContent = oName + (mySymbol === 'O' ? ' (You)' : '');
+
+            // Shell counts
+            document.getElementById('shellCount' + mySymbol).textContent =
+                'Shells: ' + gameState.yourShells.length;
+            document.getElementById('shellCount' + oppSymbol).textContent =
+                'Shells: ' + gameState.opponentShellCount;
+
+            document.getElementById('playerX').classList.toggle('active', gameState.currentTurn === 'X' && !gameState.gameOver);
+            document.getElementById('playerO').classList.toggle('active', gameState.currentTurn === 'O' && !gameState.gameOver);
+
+            var isMyTurn = gameState.currentTurn === mySymbol && !gameState.gameOver;
+
+            if (isMyTurn) {
+                if (actionMode === 'place') {
+                    if (gameState.yourShells.length > 0) {
+                        setStatus('Your turn \u2014 place a coin or use a shell');
+                    } else {
+                        setStatus('Your turn \u2014 place a coin');
+                    }
+                }
+                // If in shell mode, status is set by selectShell
+            } else if (!gameState.gameOver) {
+                setStatus(opponentName + "'s turn...");
+                resetActionMode();
+            }
+
+            // Show shell inventory during game
+            document.getElementById('shellInventory').style.display = 'block';
+            renderShellInventory(isMyTurn);
+            renderBoard();
+        }
+
+        function renderBoard() {
+            if (!gameState) return;
+            var boardEl = document.getElementById('board');
+            boardEl.innerHTML = '';
+
+            for (var i = 0; i < 9; i++) {
+                var cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.dataset.index = i;
+
+                if (gameState.board[i] !== 0) {
+                    var mark = document.createElement('span');
+                    mark.className = gameState.board[i] === 'X' ? 'x-mark' : 'o-mark';
+                    mark.textContent = gameState.board[i];
+                    cell.appendChild(mark);
+                }
+
+                // Show mine indicator for your own mines
+                if (gameState.yourMines && gameState.yourMines.indexOf(i) !== -1) {
+                    cell.classList.add('has-mine');
+                }
+
+                cell.addEventListener('click', (function(idx) {
+                    return function() { onCellClick(idx); };
+                })(i));
+                boardEl.appendChild(cell);
+            }
+        }
+
+        function renderShellInventory(isMyTurn) {
+            var list = document.getElementById('shellList');
+            list.innerHTML = '';
+
+            if (!gameState || !gameState.yourShells || gameState.yourShells.length === 0) {
+                list.innerHTML = '<span style="color:#555;font-size:13px;">No shells yet</span>';
+                return;
+            }
+
+            for (var i = 0; i < gameState.yourShells.length; i++) {
+                var type = gameState.yourShells[i];
+                var pill = document.createElement('button');
+                var cssClass = type + '-shell';
+                pill.className = 'shell-pill ' + cssClass;
+                if (selectedShellIndex === i) pill.classList.add('selected');
+                pill.textContent = SHELL_ICONS[type] + ' ' + SHELL_LABELS[type];
+                pill.disabled = !isMyTurn;
+                pill.addEventListener('click', (function(idx) {
+                    return function() { selectShell(idx); };
+                })(i));
+                list.appendChild(pill);
+            }
+        }
+
+        function setStatus(text, cls) {
+            var el = document.getElementById('status');
+            el.textContent = text;
+            el.className = 'status' + (cls ? ' ' + cls : '');
+        }
+
+        // --- Action Mode ---
+        function selectShell(index) {
+            if (!gameState || gameState.currentTurn !== mySymbol || isGameOver) return;
+
+            var shellType = gameState.yourShells[index];
+
+            // Toggle off if clicking same shell
+            if (actionMode !== 'place' && selectedShellIndex === index) {
+                cancelShellMode();
+                return;
+            }
+
+            actionMode = shellType;
+            selectedShellIndex = index;
+
+            var modeEl = document.getElementById('actionMode');
+            var modeLabel = document.getElementById('modeLabel');
+            var cancelBtn = document.getElementById('cancelModeBtn');
+            modeEl.style.display = 'flex';
+            cancelBtn.style.display = 'inline-block';
+
+            switch (shellType) {
+                case 'mine':
+                    modeLabel.textContent = 'MINE \u2014 Click empty cell to place';
+                    setStatus('Using Mine shell');
+                    break;
+                case 'shovel':
+                    modeLabel.textContent = "SHOVEL \u2014 Click opponent's coin";
+                    setStatus('Using Shovel shell');
+                    break;
+                case 'flip':
+                    modeLabel.textContent = "FLIP \u2014 Click opponent's coin to convert";
+                    setStatus('Using Flip shell');
+                    break;
+            }
+
+            renderShellInventory(true);
+            renderBoard();
+        }
+
+        function cancelShellMode() {
+            resetActionMode();
+            if (gameState && !isGameOver) {
+                var isMyTurn = gameState.currentTurn === mySymbol;
+                renderShellInventory(isMyTurn);
+                renderBoard();
+                if (isMyTurn) {
+                    if (gameState.yourShells.length > 0) {
+                        setStatus('Your turn \u2014 place a coin or use a shell');
+                    } else {
+                        setStatus('Your turn \u2014 place a coin');
+                    }
+                }
+            }
+        }
+
+        function resetActionMode() {
+            actionMode = 'place';
+            selectedShellIndex = -1;
+            document.getElementById('actionMode').style.display = 'none';
+            document.getElementById('cancelModeBtn').style.display = 'none';
+        }
+
+        // --- Cell Click ---
+        function onCellClick(idx) {
+            if (!gameState || isGameOver) return;
+            if (gameState.currentTurn !== mySymbol) {
+                showToast('Not your turn!', 'info');
+                return;
+            }
+
+            var oppSymbol = mySymbol === 'X' ? 'O' : 'X';
+
+            switch (actionMode) {
+                case 'place':
+                    if (gameState.board[idx] !== 0) {
+                        showToast('Cell is occupied!', 'info');
+                        return;
+                    }
+                    sendMsg({ type: 'place', cell: idx });
+                    break;
+
+                case 'mine':
+                    if (gameState.board[idx] !== 0) {
+                        showToast('Must place mine on empty cell!', 'info');
+                        return;
+                    }
+                    sendMsg({ type: 'useMine', cell: idx });
+                    resetActionMode();
+                    break;
+
+                case 'shovel':
+                    if (gameState.board[idx] !== oppSymbol) {
+                        showToast("Select an opponent's coin to remove!", 'info');
+                        return;
+                    }
+                    sendMsg({ type: 'useShovel', cell: idx });
+                    resetActionMode();
+                    break;
+
+                case 'flip':
+                    if (gameState.board[idx] !== oppSymbol) {
+                        showToast("Select an opponent's coin to flip!", 'info');
+                        return;
+                    }
+                    sendMsg({ type: 'useFlip', cell: idx });
+                    resetActionMode();
+                    break;
+            }
+        }
+
+        // --- Action Results ---
+        function handleActionResult(msg) {
+            switch (msg.action) {
+                case 'place':
+                    if (msg.success) {
+                        addLog('You placed <span class="entry-' + mySymbol.toLowerCase() + '">' +
+                               mySymbol + '</span> on cell ' + (msg.cell + 1) +
+                               '. Shell earned: <span class="entry-gold">' + SHELL_LABELS[msg.newShell] + '</span>');
+                        showToast('Earned: ' + SHELL_ICONS[msg.newShell] + ' ' + SHELL_LABELS[msg.newShell], 'success');
+                    } else if (msg.reason === 'mine') {
+                        addLog('<span class="entry-gold">MINE!</span> You hit a mine on cell ' +
+                               (msg.cell + 1) + '! All your coins destroyed! ' +
+                               'Shell earned: <span class="entry-gold">' + SHELL_LABELS[msg.newShell] + '</span>');
+                        showToast('You hit a mine! All coins destroyed!', 'fail');
+                    }
+                    break;
+
+                case 'mineTriggered':
+                    addLog('<span class="entry-gold">Your mine was triggered!</span> ' +
+                           opponentName + "'s coins wiped out!");
+                    showToast('Your mine was triggered!', 'success');
+                    break;
+
+                case 'useMine':
+                    addLog('You placed a <span class="entry-gold">mine</span> on cell ' + (msg.cell + 1));
+                    showToast('Mine placed!', 'success');
+                    break;
+
+                case 'useShovel':
+                    addLog('You <span class="entry-gold">shoveled</span> opponent\'s coin from cell ' + (msg.cell + 1));
+                    showToast('Removed opponent coin!', 'success');
+                    break;
+
+                case 'opponentShovel':
+                    addLog(opponentName + ' <span class="entry-gold">shoveled</span> your coin from cell ' + (msg.cell + 1) + '!');
+                    showToast('Your coin was removed!', 'fail');
+                    break;
+
+                case 'useFlip':
+                    if (msg.success === false && msg.reason === 'wouldWin') {
+                        addLog('<span class="entry-gold">Flip blocked!</span> Can\'t flip to win.');
+                        showToast("Flip blocked! Can't use flip to win the game.", 'fail');
+                    } else {
+                        addLog('You <span class="entry-gold">flipped</span> opponent\'s coin on cell ' + (msg.cell + 1) + ' to yours!');
+                        showToast('Coin flipped!', 'success');
+                    }
+                    break;
+
+                case 'opponentFlip':
+                    addLog(opponentName + ' <span class="entry-gold">flipped</span> your coin on cell ' + (msg.cell + 1) + '!');
+                    showToast('Your coin was flipped!', 'fail');
+                    break;
+            }
+        }
+
+        // --- Game Over ---
+        function handleGameOver(msg) {
+            isGameOver = true;
+
+            // Render final board with mine reveals
+            var boardEl = document.getElementById('board');
+            boardEl.innerHTML = '';
+            var allMines = (msg.mines.X || []).concat(msg.mines.O || []);
+
+            for (var i = 0; i < 9; i++) {
+                var cell = document.createElement('div');
+                cell.className = 'cell';
+                if (msg.board[i] !== 0) {
+                    var mark = document.createElement('span');
+                    mark.className = msg.board[i] === 'X' ? 'x-mark' : 'o-mark';
+                    mark.textContent = msg.board[i];
+                    cell.appendChild(mark);
+                }
+                if (msg.winCells && msg.winCells.indexOf(i) !== -1) {
+                    cell.classList.add('win-cell');
+                }
+                if (allMines.indexOf(i) !== -1) {
+                    cell.classList.add('revealed-mine');
+                }
+                boardEl.appendChild(cell);
+            }
+
+            // Show remaining shells for both
+            var revealHtml = '<span class="entry-divider">--- REVEAL ---</span>';
+            var syms = ['X', 'O'];
+            for (var s = 0; s < syms.length; s++) {
+                var sym = syms[s];
+                var name = msg.players[sym] || sym;
+                var shells = msg.shells[sym] || [];
+                var shellStrs = [];
+                for (var k = 0; k < shells.length; k++) {
+                    shellStrs.push(SHELL_LABELS[shells[k]] || shells[k]);
+                }
+                revealHtml += '<div>' + name + ' shells: ' +
+                    (shellStrs.length > 0 ? shellStrs.join(', ') : 'none') + '</div>';
+                if (msg.mines[sym] && msg.mines[sym].length > 0) {
+                    var mineCells = [];
+                    for (var m = 0; m < msg.mines[sym].length; m++) {
+                        mineCells.push('cell ' + (msg.mines[sym][m] + 1));
+                    }
+                    revealHtml += '<div>' + name + ' mines: ' + mineCells.join(', ') + '</div>';
+                }
+            }
+            addLog(revealHtml);
+
+            // Update shell counts
+            var myShells = msg.shells[msg.yourSymbol] || [];
+            var oppSym = msg.yourSymbol === 'X' ? 'O' : 'X';
+            var oppShells = msg.shells[oppSym] || [];
+            document.getElementById('shellCount' + msg.yourSymbol).textContent = 'Shells: ' + myShells.length;
+            document.getElementById('shellCount' + oppSym).textContent = 'Shells: ' + oppShells.length;
+
+            // Hide shell inventory and action mode
+            document.getElementById('shellInventory').style.display = 'none';
+            resetActionMode();
+            document.getElementById('playerX').classList.remove('active');
+            document.getElementById('playerO').classList.remove('active');
+
+            if (msg.winner === null) {
+                setStatus("It's a draw!", '');
+                addLog('Game over \u2014 draw!');
+            } else if (msg.winner === msg.yourSymbol) {
+                setStatus('You win! Three in a row!', 'win');
+                addLog('<span class="entry-' + msg.yourSymbol.toLowerCase() + '">You win!</span> Three in a row!');
+            } else {
+                setStatus(opponentName + ' wins! Three in a row.', 'lose');
+                addLog('<span class="entry-' + msg.winner.toLowerCase() + '">' + opponentName + ' wins.</span> Three in a row.');
+            }
+
+            // Show rematch button
+            var rematchBtn = document.getElementById('rematchBtn');
+            rematchBtn.style.display = 'inline-block';
+            rematchBtn.textContent = 'Rematch';
+            rematchBtn.classList.remove('waiting');
+        }
+
+        function requestRematch() {
+            var btn = document.getElementById('rematchBtn');
+            btn.textContent = 'Waiting for opponent...';
+            btn.classList.add('waiting');
+            sendMsg({ type: 'restart' });
+        }
+
+        // --- Helpers ---
+        function showToast(msg, type) {
+            var toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = 'toast ' + type + ' show';
+            clearTimeout(toast._timeout);
+            toast._timeout = setTimeout(function() { toast.classList.remove('show'); }, 2500);
+        }
+
+        function addLog(html) {
+            var el = document.getElementById('log');
+            el.innerHTML += '<div>' + html + '</div>';
+            el.scrollTop = el.scrollHeight;
+        }
+
+        function toggleRules() {
+            document.getElementById('rulesPanel').classList.toggle('show');
+        }
+
+        // Lobby enter key
+        document.getElementById('gameIdInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') joinGame();
+        });
+
+        // --- Auto-reconnect on page load ---
+        (function() {
+            var session = getSavedSession();
+            if (session) {
+                connectWS(function() {
+                    sendMsg({ type: 'reconnect', gameId: session.gameId, userId: getUserId() });
+                });
+            }
+        })();
+    </script>
+</body>
+</html>
